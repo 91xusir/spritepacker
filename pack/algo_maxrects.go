@@ -6,10 +6,9 @@ import (
 
 type FreeRect struct {
 	Rect
-	X, Y int // 左上角坐标
+	X, Y int
 }
 
-// algoMaxrects 装箱器实现
 type algoMaxrects struct {
 	algoBasic
 	usedRects []PackedRect
@@ -23,7 +22,6 @@ func (algo *algoMaxrects) init(opt *Options) {
 	algo.method = opt.heuristic
 }
 
-// packing 打包
 func (algo *algoMaxrects) packing(reqRects []Rect) PackedResult {
 	result := PackedResult{
 		UnpackedRects: make([]Rect, 0),
@@ -43,7 +41,6 @@ func (algo *algoMaxrects) packing(reqRects []Rect) PackedResult {
 	return result
 }
 
-// insert 插入单个矩形
 func (algo *algoMaxrects) insert(rect Rect) (PackedRect, bool) {
 	bestNode := algo.findBestPosition(rect)
 	if bestNode.H == 0 {
@@ -53,25 +50,21 @@ func (algo *algoMaxrects) insert(rect Rect) (PackedRect, bool) {
 	return bestNode, true
 }
 
-// findBestPosition 查找最佳放置位置
 func (algo *algoMaxrects) findBestPosition(rect Rect) PackedRect {
 	var bestNode PackedRect
 	bestScore := math.MaxInt
 	for _, freeRect := range algo.freeRects {
-		// 不旋转
 		if freeRect.W >= rect.W && freeRect.H >= rect.H {
 			score := algo.calculateScore(freeRect, rect.W, rect.H)
 			if score < bestScore {
-				bestNode = NewRectPacked(rect, freeRect.X, freeRect.Y)
+				bestNode = NewRectPacked(freeRect.X, freeRect.Y, rect)
 				bestScore = score
 			}
 		}
-
-		// 尝试旋转
 		if algo.allowRotate && freeRect.W >= rect.H && freeRect.H >= rect.W {
 			score := algo.calculateScore(freeRect, rect.H, rect.W)
 			if score < bestScore {
-				bestNode = NewRectPacked(rect, freeRect.X, freeRect.Y).Rotated()
+				bestNode = NewRectPacked(freeRect.X, freeRect.Y, rect).Rotated()
 				bestScore = score
 			}
 		}
@@ -79,7 +72,6 @@ func (algo *algoMaxrects) findBestPosition(rect Rect) PackedRect {
 	return bestNode
 }
 
-// calculateScore 根据策略计算放置分数
 func (algo *algoMaxrects) calculateScore(freeRect FreeRect, rectW, rectH int) int {
 	switch algo.method {
 	case BestShortSideFit:
@@ -97,28 +89,21 @@ func (algo *algoMaxrects) calculateScore(freeRect FreeRect, rectW, rectH int) in
 	}
 }
 
-// calculateContactPoint 计算接触点数
 func (algo *algoMaxrects) calculateContactPoint(freeRect FreeRect, rectW, rectH int) int {
 	contactScore := 0
-	// 预计算新矩形的边界
 	newRect := FreeRect{
 		X:    freeRect.X,
 		Y:    freeRect.Y,
 		Rect: Rect{H: rectH, W: rectW},
 	}
-
-	// 检查与容器边界的接触
 	if newRect.X == 0 || newRect.X+newRect.W == algo.w {
 		contactScore += newRect.H
 	}
 	if newRect.Y == 0 || newRect.Y+newRect.H == algo.h {
 		contactScore += newRect.W
 	}
-
-	// 检查与已放置矩形的接触
 	for _, usedRect := range algo.usedRects {
 		if newRect.X == usedRect.X+usedRect.W || newRect.X+newRect.W == usedRect.X {
-			// 垂直接触
 			overlap := minInt(newRect.Y+newRect.H, usedRect.Y+usedRect.H) -
 				maxInt(newRect.Y, usedRect.Y)
 			if overlap > 0 {
@@ -127,7 +112,6 @@ func (algo *algoMaxrects) calculateContactPoint(freeRect FreeRect, rectW, rectH 
 		}
 
 		if newRect.Y == usedRect.Y+usedRect.H || newRect.Y+newRect.H == usedRect.Y {
-			// 水平接触
 			overlap := minInt(newRect.X+newRect.W, usedRect.X+usedRect.W) -
 				maxInt(newRect.X, usedRect.X)
 			if overlap > 0 {
@@ -138,9 +122,7 @@ func (algo *algoMaxrects) calculateContactPoint(freeRect FreeRect, rectW, rectH 
 	return contactScore
 }
 
-// placeRect 放置矩形并分割剩余空间
 func (algo *algoMaxrects) placeRect(rect PackedRect) {
-	// 分割所有相交的空闲矩形
 	for i := 0; i < len(algo.freeRects); {
 		if algo.splitFreeRect(algo.freeRects[i], rect) {
 			algo.freeRects = append(algo.freeRects[:i], algo.freeRects[i+1:]...)
@@ -148,21 +130,17 @@ func (algo *algoMaxrects) placeRect(rect PackedRect) {
 			i++
 		}
 	}
-	// 清理无效的空闲矩形
 	algo.pruneFreeList()
 	algo.usedRects = append(algo.usedRects, rect)
 }
 
-// splitFreeRect 分割空闲矩形
 func (algo *algoMaxrects) splitFreeRect(freeRect FreeRect, usedRect PackedRect) bool {
-	// 检查是否有重叠
 	if usedRect.X >= freeRect.X+freeRect.W || usedRect.X+usedRect.W <= freeRect.X ||
 		usedRect.Y >= freeRect.Y+freeRect.H || usedRect.Y+usedRect.H <= freeRect.Y {
 		return false
 	}
 
-	// 生成新的空闲矩形（上下左右四个部分）
-	// 上部分
+	// upper part
 	if usedRect.Y > freeRect.Y {
 		algo.freeRects = append(algo.freeRects, FreeRect{
 			X: freeRect.X,
@@ -174,7 +152,7 @@ func (algo *algoMaxrects) splitFreeRect(freeRect FreeRect, usedRect PackedRect) 
 		})
 	}
 
-	// 下部分
+	// lower part
 	if usedRect.Y+usedRect.H < freeRect.Y+freeRect.H {
 		algo.freeRects = append(algo.freeRects, FreeRect{
 			X: freeRect.X,
@@ -186,7 +164,7 @@ func (algo *algoMaxrects) splitFreeRect(freeRect FreeRect, usedRect PackedRect) 
 		})
 	}
 
-	// 左部分
+	// left part
 	if usedRect.X > freeRect.X {
 		algo.freeRects = append(algo.freeRects, FreeRect{
 			X: freeRect.X,
@@ -198,7 +176,7 @@ func (algo *algoMaxrects) splitFreeRect(freeRect FreeRect, usedRect PackedRect) 
 		})
 	}
 
-	// 右部分
+	// right part
 	if usedRect.X+usedRect.W < freeRect.X+freeRect.W {
 		algo.freeRects = append(algo.freeRects, FreeRect{
 			X: usedRect.X + usedRect.W,
@@ -212,9 +190,7 @@ func (algo *algoMaxrects) splitFreeRect(freeRect FreeRect, usedRect PackedRect) 
 	return true
 }
 
-// pruneFreeList 清理无效的空闲矩形
 func (algo *algoMaxrects) pruneFreeList() {
-	// 移除被完全包含的空闲矩形
 	for i := 0; i < len(algo.freeRects); i++ {
 		for j := i + 1; j < len(algo.freeRects); {
 			if algo.isContained(algo.freeRects[i], algo.freeRects[j]) {
@@ -231,7 +207,6 @@ func (algo *algoMaxrects) pruneFreeList() {
 	}
 }
 
-// isContained 检查rect1是否完全包含在rect2中
 func (algo *algoMaxrects) isContained(rect1, rect2 FreeRect) bool {
 	return rect1.X >= rect2.X && rect1.Y >= rect2.Y &&
 		rect1.X+rect1.W <= rect2.X+rect2.W &&

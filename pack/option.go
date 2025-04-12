@@ -1,6 +1,9 @@
 package pack
 
-import "os"
+import (
+	"fmt"
+	"os"
+)
 
 type Options struct {
 	//----path----
@@ -20,6 +23,8 @@ type Options struct {
 	tolerance  uint8 // tolerance for trimming transparency pixels 0-255
 	sameDetect bool  // same detection
 	powerOfTwo bool  // the atlas pixels are fixed to a power of 2
+	//----validate----
+	err error
 }
 
 func NewOptions() *Options {
@@ -42,49 +47,76 @@ func NewOptions() *Options {
 }
 
 func (b *Options) InputDir(dir string) *Options {
+	if b.err != nil {
+		return b
+	}
 	if dir == "" {
-		panic("input dir is empty")
+		b.err = fmt.Errorf("input dir is empty")
+		return b
 	}
 	if _, err := os.Stat(dir); os.IsNotExist(err) {
-		panic("input dir does not exist")
+		b.err = fmt.Errorf("input dir does not exist: %w", err)
+		return b
 	}
 	b.inputDir = dir
 	return b
 }
+
 func (b *Options) OutputDir(dir string) *Options {
+	if b.err != nil {
+		return b
+	}
 	if dir == "" {
-		panic("output dir is empty")
+		b.err = fmt.Errorf("output dir is empty")
+		return b
 	}
 	if _, err := os.Stat(dir); os.IsNotExist(err) {
-		panic("output dir does not exist")
+		b.err = fmt.Errorf("output dir does not exist: %w", err)
+		return b
 	}
 	b.outputDir = dir
 	return b
 }
 
 func (b *Options) MaxSize(w, h int) *Options {
+	if b.err != nil {
+		return b
+	}
 	if w <= 0 || h <= 0 {
-		panic("max size must be greater than 0")
+		b.err = fmt.Errorf("max size must be greater than 0")
+		return b
 	}
 	b.maxW = w
 	b.maxH = h
 	return b
 }
+
 func (b *Options) Padding(padding int) *Options {
+	if b.err != nil {
+		return b
+	}
 	if padding < 0 {
-		panic("padding must be >= 0")
+		b.err = fmt.Errorf("padding must be >= 0")
+		return b
 	}
 	b.padding = padding
 	return b
 }
+
 func (b *Options) Algorithm(algo Algorithm) *Options {
-	if algo < AlgoBasic || algo >= MaxAlgosIndex {
+	if b.err != nil {
+		return b
+	}
+	if algo < AlgoBasic || algo >= MaxAlgoIndex {
 		algo = AlgoBasic
 	}
 	b.algorithm = algo
 	return b
 }
 func (b *Options) Heuristic(heuristic Heuristic) *Options {
+	if b.err != nil {
+		return b
+	}
 	if heuristic < BestShortSideFit || heuristic >= MaxHeuristicsIndex {
 		heuristic = BestShortSideFit
 	}
@@ -92,33 +124,59 @@ func (b *Options) Heuristic(heuristic Heuristic) *Options {
 	return b
 }
 func (b *Options) Sort(enable bool) *Options {
+	if b.err != nil {
+		return b
+	}
 	b.sort = enable
 	return b
 }
 func (b *Options) AllowRotate(enable bool) *Options {
+	if b.err != nil {
+		return b
+	}
 	b.allowRotate = enable
 	return b
 }
 func (b *Options) Trim(enable bool) *Options {
+	if b.err != nil {
+		return b
+	}
 	b.trim = enable
 	return b
 }
 func (b *Options) AutoSize(enable bool) *Options {
+	if b.err != nil {
+		return b
+	}
 	b.autoSize = enable
 	return b
 }
 func (b *Options) Tolerance(tolerance int) *Options {
+	if b.err != nil {
+		return b
+	}
 	if tolerance < 0 || tolerance > 255 {
-		panic("tolerance must be between 0 and 255")
+		b.err = fmt.Errorf("tolerance must be in the range 0-255")
+		return b
 	}
 	b.tolerance = uint8(tolerance)
 	return b
 }
 func (b *Options) SameDetect(enable bool) *Options {
+	if b.err != nil {
+		return b
+	}
 	b.sameDetect = enable
 	return b
 }
 func (b *Options) PowerOfTwo(enable bool) *Options {
+	if b.err != nil {
+		return b
+	}
 	b.powerOfTwo = enable
 	return b
+}
+
+func (b *Options) Validate() (*Options, error) {
+	return b, b.err
 }

@@ -65,28 +65,6 @@ spritepacker -input ./sprites -output ./atlas -maxw 1024 -maxh 1024 -trim -rotat
 ## 🧪 Go API Example | Go 语言调用示例
 
 ```GO
-func Test_Packing(t *testing.T) {
-	// you can use func NewOptions to set options
-	options := packer.NewOptions(
-		packer.WithMaxSize(1024, 1024),
-		packer.WithPadding(0),
-		packer.WithAlgorithm(packer.AlgoSkyline),
-	)
-	_ = options
-	// you also can use OptionBuilder to set options
-	options = packer.NewOptionBuilder().
-		MaxSize(1024, 1024).
-		Padding(0).
-		Algorithm(packer.AlgoSkyline).
-		Build()
 
-	reqPackedRect, _ := getTestData("test_rect/rect.txt")
-
-	packer := packer.NewPacker(options).SetRects(reqPackedRect)
-
-	packResult := packer.Packing()
-
-	fmt.Println(packResult)
-}
 ```
 

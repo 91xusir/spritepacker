@@ -99,7 +99,7 @@ func (p *algoSkyline) getHLHR(skyLine skyline) (int, int) {
 	return hl, hr
 }
 
-// selectMaxScsporeRect selects the rectangle with the highest score
+// selectMaxScoreRect selects the rectangle with the highest score
 func (p *algoSkyline) selectMaxScoreRect(skyLine skyline, hl, hr int, used []bool, reqRects []Rect) (int, int, bool) {
 	maxRectIndex, maxScore := -1, -1
 	isRotate := false
@@ -132,10 +132,10 @@ func (p *algoSkyline) placeRect(maxRectIndex int, skyLine skyline, isRotate bool
 	return p.placeLeft(reqRects[maxRectIndex], skyLine, isRotate)
 }
 
-// placeLeft 将矩形靠左放
+// placeLeft Place the rectangle to the left
 
 func (p *algoSkyline) placeLeft(rect Rect, skyLine skyline, isRotate bool) PackedRect {
-	packedRect := NewRectPacked(rect, skyLine.x, skyLine.y)
+	packedRect := NewRectPacked(skyLine.x, skyLine.y, rect)
 	if isRotate {
 		packedRect = packedRect.Rotated()
 	}
@@ -149,9 +149,9 @@ func (p *algoSkyline) placeLeft(rect Rect, skyLine skyline, isRotate bool) Packe
 func (p *algoSkyline) placeRight(rect Rect, skyLine skyline, isRotate bool) PackedRect {
 	var packedRect PackedRect
 	if !isRotate {
-		packedRect = NewRectPacked(rect, skyLine.x+skyLine.len-rect.W, skyLine.y)
+		packedRect = NewRectPacked(skyLine.x+skyLine.len-rect.W, skyLine.y, rect)
 	} else {
-		packedRect = NewRectPacked(rect, skyLine.x+skyLine.len-rect.H, skyLine.y).Rotated()
+		packedRect = NewRectPacked(skyLine.x+skyLine.len-rect.H, skyLine.y, rect).Rotated()
 	}
 	p.addSkyLineInQueue(skyLine.x, skyLine.y, skyLine.len-packedRect.W)
 	p.addSkyLineInQueue(packedRect.X, skyLine.y+packedRect.H, packedRect.W)

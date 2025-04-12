@@ -10,27 +10,28 @@ import (
 	"time"
 )
 
-// 算法结果结构体
 type AlgoResult struct {
-	Rects    []pack.PackedRect // 打包后矩形列表
-	Title    string            // 算法名称
-	FillRate float64           // 填充率
-	TimeUsed int64             // 使用时间（纳秒）
+	Rects    []pack.PackedRect
+	Title    string
+	FillRate float64
+	TimeUsed int64
 }
 
-// 主测试函数
-func Test_PackRects(t *testing.T) {
-	rand.Seed(time.Now().UnixNano())              // 初始化随机种子
-	reqRects := generateRandomRects(50, 200, 200) // 随机生成 50 个矩形，最大宽高 200
-	options := pack.NewOptions().MaxSize(1024, 1024).AllowRotate(true)
+func Test_packRects(t *testing.T) {
+	reqRects := generateRandomRects(100, 200, 200)
+	options, err := pack.NewOptions().MaxSize(1024, 1024).AllowRotate(true).Validate()
+	if err != nil {
+		fmt.Println(err)
+		return
+	}
 	var results []AlgoResult
 	algorithms := []struct {
 		name string
 		algo pack.Algorithm
 	}{
-		{"AlgoBasic", pack.AlgoBasic},
-		{"AlgoSkyline", pack.AlgoSkyline},
-		{"AlgoMaxRects", pack.AlgoMaxRects},
+		{"Basic", pack.AlgoBasic},
+		{"Skyline", pack.AlgoSkyline},
+		{"MaxRects", pack.AlgoMaxRects},
 	}
 	for _, a := range algorithms {
 		start := time.Now()
@@ -47,12 +48,18 @@ func Test_PackRects(t *testing.T) {
 	generateComparisonHTML(results)
 }
 
-func generateRandomRects(count int, maxW int, maxH int) []pack.Rect {
+func generateRandomRects(count, maxW, maxH int) []pack.Rect {
 	rects := make([]pack.Rect, 0, count)
 	for i := 0; i < count; i++ {
-		w := rand.Intn(maxW-10) + 10
-		h := rand.Intn(maxH-10) + 10
-		rects = append(rects, pack.NewRectById(w, h, i))
+		if rand.Intn(2) == 0 {
+			w := rand.Intn(maxW/2) + maxW/2
+			h := rand.Intn(maxH/2) + maxH/2
+			rects = append(rects, pack.NewRectById(w, h, i))
+		} else {
+			w := rand.Intn(maxW/3) + 1
+			h := rand.Intn(maxH/3) + 1
+			rects = append(rects, pack.NewRectById(w, h, i))
+		}
 	}
 	return rects
 }
@@ -60,7 +67,7 @@ func generateRandomRects(count int, maxW int, maxH int) []pack.Rect {
 func generateComparisonHTML(results []AlgoResult) {
 	html := `
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
   <meta charset="UTF-8">
   <title>Algorithm Comparison</title>

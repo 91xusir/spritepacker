@@ -1,16 +1,16 @@
 package pack
 
+// Algorithm defines the packing algorithm used.
 type Algorithm int
 
-// TODO: Add more algorithms
 const (
 	AlgoBasic Algorithm = iota
 	AlgoSkyline
 	AlgoMaxRects
-	MaxAlgosIndex
+	MaxAlgoIndex
 )
 
-// Heuristic 定义装箱策略类型
+// Heuristic defines the heuristic used by the MaxRects algorithm.
 type Heuristic int
 
 const (
@@ -26,12 +26,22 @@ const (
 type algo interface {
 	init(opt *Options)                    // Init initializes the algo with the given bin and Options.
 	packing(reqRects []Rect) PackedResult // Pack packs the rectangles into the bin.
+	resetWH(w, h int)                     // ResetWH resets the width and height of the bin.
+	getWH() (w, h int)                    // GetWH returns the width and height of the bin.
 }
 
 // algoBasic basicAlgorithms
 type algoBasic struct {
 	w, h        int  // The width and height of the bin
 	allowRotate bool // Whether to allow rectangle rotation
+}
+
+func (algo *algoBasic) resetWH(w, h int) {
+	algo.w, algo.h = w, h
+}
+
+func (algo *algoBasic) getWH() (w, h int) {
+	return algo.w, algo.h
 }
 
 func (algo *algoBasic) init(opt *Options) {
@@ -53,7 +63,7 @@ func (algo *algoBasic) packing(reqRects []Rect) PackedResult {
 			maxYInRow = 0
 		}
 		canPlace := false
-		placed := NewRectPacked(reqRect, 0, 0)
+		placed := NewRectPacked(0, 0, reqRect)
 		if currentX+reqRect.W <= algo.w && currentY+reqRect.H <= algo.h {
 			placed.X = currentX
 			placed.Y = currentY
@@ -78,7 +88,6 @@ func (algo *algoBasic) packing(reqRects []Rect) PackedResult {
 	}
 	fillRate := float64(totalArea) / float64(algo.w*algo.h)
 	bin := NewBin(algo.w, algo.h, packedRects, totalArea, fillRate)
-
 	return PackedResult{
 		Bin:           bin,
 		UnpackedRects: unpackedRects,
