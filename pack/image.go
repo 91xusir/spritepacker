@@ -1,7 +1,6 @@
-package texture
+package pack
 
 import "image"
-
 
 // GetOpaqueBounds returns the bounds of the opaque area of the image.
 // The image is assumed to be in RGBA format.
@@ -18,7 +17,7 @@ func GetOpaqueBounds(img image.Image, alphaThreshold uint32) image.Rectangle {
 		for y := bounds.Min.Y; y < bounds.Max.Y; y++ {
 			i := src.PixOffset(bounds.Min.X, y)
 			for x := bounds.Min.X; x < bounds.Max.X; x++ {
-				if src.Pix[i+3] > uint8(alphaThreshold) { 
+				if src.Pix[i+3] > uint8(alphaThreshold) {
 					found = true
 					if x < minX {
 						minX = x
@@ -82,8 +81,7 @@ func GetOpaqueBounds(img image.Image, alphaThreshold uint32) image.Rectangle {
 		}
 	}
 	if !found {
-		return bounds 
+		return bounds
 	}
 	return image.Rect(minX, minY, maxX+1, maxY+1)
 }
-
