@@ -2,7 +2,7 @@ package pack
 
 type SpriteAtlas struct {
 	Meta    Meta    `json:"meta"`
-	Atlases []Atlas `json:"atlases"` // 改名为复数形式，更符合内容
+	Atlases []Atlas `json:"atlases"`
 }
 
 type Meta struct {
@@ -14,7 +14,7 @@ type Meta struct {
 
 type Atlas struct {
 	Name    string   `json:"name"`
-	Size    Size     `json:"size"` // 修正为小写，与其他字段保持一致
+	Size    Size     `json:"size"`
 	Sprites []Sprite `json:"sprites"`
 }
 

@@ -92,3 +92,23 @@ func NewBin(w, h int, req []PackedRect, usedArea int, fillRate float64) Bin {
 func (b Bin) String() string {
 	return fmt.Sprintf("{Id:%v, W:%d, H:%d, FillRate:%.2f%%, PackedRects:%v}", b.Id, b.W, b.H, b.FillRate*100, b.PackedRects)
 }
+
+// PackedResult represents the result of packing rectangles into a bin.
+type PackedResult struct {
+	Bin           Bin
+	UnpackedRects []Rect
+}
+
+func (r PackedResult) String() string {
+	return fmt.Sprintf("PackedResult{Bin:%s, UnpackedRects:%v}", r.Bin, r.UnpackedRects)
+}
+
+func addPadding(rect *Rect, padding int) {
+	rect.W += padding
+	rect.H += padding
+}
+
+func removePadding(rect *Rect, padding int) {
+	rect.W -= padding
+	rect.H -= padding
+}

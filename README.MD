@@ -9,13 +9,13 @@
 ## 📦 Installation | 安装
 
 ```
-go install github.com/yourname/spritepacker@latest
+go get -u github.com/91xusir/spritepacker
 ```
 
 or
 
 ```
-git clone https://github.com/yourname/spritepacker.git
+git clone https://github.com/91xusir/spritepacker.git
 cd spritepacker
 go build .
 ```
@@ -27,7 +27,7 @@ go build .
 ### CLI 命令行
 
 ```bash
-spritepacker -input ./sprites -output ./atlas -maxw 1024 -maxh 1024 -trim -rotate
+
 ```
 
 ### Options 参数说明
@@ -39,8 +39,8 @@ spritepacker -input ./sprites -output ./atlas -maxw 1024 -maxh 1024 -trim -rotat
 | `-maxw`     | Maximum atlas width               | 最大图集宽度           |
 | `-maxh`     | Maximum atlas height              | 最大图集高度           |
 | `-trim`     | Trim transparent edges            | 裁剪透明边缘           |
-| `-rotate`   | Allow 90-degree rotation          | 允许 90 度旋转优化      |
-| `-autosize` | Auto resize the canvas            | 自动适配画布尺寸         |
+| `-rotate`   | Allow 90-degree rotation          | 允许旋转优化           |
+| `-autosize` | Auto resize the canvas            | 自动调整尺寸           |
 | `-format`   | Output format (json, xml, etc.)   | 输出格式（json、xml 等） |
 
 ------

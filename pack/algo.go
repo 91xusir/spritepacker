@@ -26,8 +26,7 @@ const (
 type algo interface {
 	init(opt *Options)                    // Init initializes the algo with the given bin and Options.
 	packing(reqRects []Rect) PackedResult // Pack packs the rectangles into the bin.
-	resetWH(w, h int)                     // ResetWH resets the width and height of the bin.
-	getWH() (w, h int)                    // GetWH returns the width and height of the bin.
+	reset(w, h int)                       // ResetWH resets the width and height of the bin.
 }
 
 // algoBasic basicAlgorithms
@@ -36,12 +35,8 @@ type algoBasic struct {
 	allowRotate bool // Whether to allow rectangle rotation
 }
 
-func (algo *algoBasic) resetWH(w, h int) {
+func (algo *algoBasic) reset(w, h int) {
 	algo.w, algo.h = w, h
-}
-
-func (algo *algoBasic) getWH() (w, h int) {
-	return algo.w, algo.h
 }
 
 func (algo *algoBasic) init(opt *Options) {
@@ -76,12 +71,12 @@ func (algo *algoBasic) packing(reqRects []Rect) PackedResult {
 			canPlace = true
 		}
 		if canPlace {
-			packedRects = append(packedRects, placed)
-			totalArea += placed.Area()
 			currentX += placed.W
 			if placed.H > maxYInRow {
 				maxYInRow = placed.H
 			}
+			totalArea += placed.Area()
+			packedRects = append(packedRects, placed)
 		} else {
 			unpackedRects = append(unpackedRects, reqRect)
 		}

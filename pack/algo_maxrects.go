@@ -22,12 +22,18 @@ func (algo *algoMaxrects) init(opt *Options) {
 	algo.method = opt.heuristic
 }
 
+func (algo *algoMaxrects) reset(w, h int) {
+	algo.algoBasic.reset(w, h)
+	algo.freeRects = []FreeRect{{Rect: Rect{W: algo.w, H: algo.h}, X: 0, Y: 0}}
+}
+
 func (algo *algoMaxrects) packing(reqRects []Rect) PackedResult {
 	result := PackedResult{
 		UnpackedRects: make([]Rect, 0),
 		Bin:           NewBin(algo.w, algo.h, make([]PackedRect, 0), 0, 0),
 	}
 	for _, rect := range reqRects {
+
 		if packedRect, ok := algo.insert(rect); ok {
 			result.Bin.UsedArea += rect.Area()
 			result.Bin.PackedRects = append(result.Bin.PackedRects, packedRect)
@@ -75,9 +81,9 @@ func (algo *algoMaxrects) findBestPosition(rect Rect) PackedRect {
 func (algo *algoMaxrects) calculateScore(freeRect FreeRect, rectW, rectH int) int {
 	switch algo.method {
 	case BestShortSideFit:
-		return minInt(freeRect.W-rectW, freeRect.H-rectH)
+		return MinInt(freeRect.W-rectW, freeRect.H-rectH)
 	case BestLongSideFit:
-		return maxInt(freeRect.W-rectW, freeRect.H-rectH)
+		return MaxInt(freeRect.W-rectW, freeRect.H-rectH)
 	case BestAreaFit:
 		return freeRect.W*freeRect.H - rectW*rectH
 	case BottomLeftFit:
@@ -104,16 +110,16 @@ func (algo *algoMaxrects) calculateContactPoint(freeRect FreeRect, rectW, rectH 
 	}
 	for _, usedRect := range algo.usedRects {
 		if newRect.X == usedRect.X+usedRect.W || newRect.X+newRect.W == usedRect.X {
-			overlap := minInt(newRect.Y+newRect.H, usedRect.Y+usedRect.H) -
-				maxInt(newRect.Y, usedRect.Y)
+			overlap := MinInt(newRect.Y+newRect.H, usedRect.Y+usedRect.H) -
+				MaxInt(newRect.Y, usedRect.Y)
 			if overlap > 0 {
 				contactScore += overlap
 			}
 		}
 
 		if newRect.Y == usedRect.Y+usedRect.H || newRect.Y+newRect.H == usedRect.Y {
-			overlap := minInt(newRect.X+newRect.W, usedRect.X+usedRect.W) -
-				maxInt(newRect.X, usedRect.X)
+			overlap := MinInt(newRect.X+newRect.W, usedRect.X+usedRect.W) -
+				MaxInt(newRect.X, usedRect.X)
 			if overlap > 0 {
 				contactScore += overlap
 			}

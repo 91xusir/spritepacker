@@ -1,10 +1,14 @@
 package spritepacker
 
 import (
+	"bufio"
 	"fmt"
 	"math/rand"
 	"os"
+	"path/filepath"
+	"slices"
 	"spritepacker/pack"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -15,15 +19,57 @@ type AlgoResult struct {
 	Title    string
 	FillRate float64
 	TimeUsed int64
+	totalS   int
+	usedS    int
+	w        int
+	h        int
 }
 
-func Test_packRects(t *testing.T) {
-	reqRects := generateRandomRects(100, 200, 200)
-	options, err := pack.NewOptions().MaxSize(1024, 1024).AllowRotate(true).Validate()
-	if err != nil {
-		fmt.Println(err)
-		return
+// used fixed data and fixed size to test
+func TestFixedDataFixedSize(t *testing.T) {
+	reqRects := make([]pack.Rect, 100)
+	for i := 0; i < 100; i++ {
+		reqRects[i] = pack.Rect{W: 64, H: 64}
 	}
+
+	options := pack.NewOptions().
+		MaxSize(512, 512).
+		AllowRotate(true).
+		Heuristic(pack.BestLongSideFit)
+
+	results := packedWithAllAlgorithms(t, reqRects, options)
+
+	generateComparisonHTML(results, "fixedData_fixedSize")
+}
+
+// used fixed data and different size to test
+func TestFixedDataDiffSize(t *testing.T) {
+	reqRects, _ := getTestData("test_rect.txt")
+
+	options := pack.NewOptions().
+		MaxSize(1024, 1024).AutoSize(true).
+		AllowRotate(true)
+
+	results := packedWithAllAlgorithms(t, reqRects, options)
+
+	generateComparisonHTML(results, "fixedData_diffSize")
+}
+
+// used random data and random size to test
+func TestRandomDateRandomSize(t *testing.T) {
+	reqRects := generateRandomRects(100, 100, 100)
+
+	options := pack.NewOptions().
+		MaxSize(512, 512).
+		AllowRotate(true).
+		Heuristic(pack.BestLongSideFit)
+
+	results := packedWithAllAlgorithms(t, reqRects, options)
+
+	generateComparisonHTML(results, "randomDate_randomSize")
+}
+
+func packedWithAllAlgorithms(t *testing.T, reqRects []pack.Rect, options *pack.Options) []AlgoResult {
 	var results []AlgoResult
 	algorithms := []struct {
 		name string
@@ -35,17 +81,22 @@ func Test_packRects(t *testing.T) {
 	}
 	for _, a := range algorithms {
 		start := time.Now()
-		packed := pack.NewPacker(options.Algorithm(a.algo)).PackRect(reqRects)
+		r := slices.Clone(reqRects)
+		packed := pack.NewPacker(options.Algorithm(a.algo)).PackRect(r)
 		elapsed := time.Since(start).Nanoseconds()
-		fmt.Printf("%s FillRate: %.2f%%, Time: %d ns\n", a.name, packed.Bin.FillRate*100, elapsed)
+		t.Logf("%s FillRate: %.2f%%, Time: %d ns\n", a.name, packed.Bin.FillRate*100, elapsed)
 		results = append(results, AlgoResult{
 			Rects:    packed.Bin.PackedRects,
 			Title:    a.name,
 			FillRate: packed.Bin.FillRate,
 			TimeUsed: elapsed,
+			totalS:   packed.Bin.Area(),
+			usedS:    packed.Bin.UsedArea,
+			w:        packed.Bin.W,
+			h:        packed.Bin.H,
 		})
 	}
-	generateComparisonHTML(results)
+	return results
 }
 
 func generateRandomRects(count, maxW, maxH int) []pack.Rect {
@@ -64,7 +115,7 @@ func generateRandomRects(count, maxW, maxH int) []pack.Rect {
 	return rects
 }
 
-func generateComparisonHTML(results []AlgoResult) {
+func generateComparisonHTML(results []AlgoResult, filename string) {
 	html := `
 <!DOCTYPE html>
 <html lang="en">
@@ -72,7 +123,7 @@ func generateComparisonHTML(results []AlgoResult) {
   <meta charset="UTF-8">
   <title>Algorithm Comparison</title>
   <style>
-    body { font-family: sans-serif; margin: 0; padding: 0; }
+    body { font-family: sans-serif; margin: 0; padding: 0; zoom: 0.6}
     h2 { text-align: center; }
     .canvas-container {
       display: flex;
@@ -103,13 +154,16 @@ func generateComparisonHTML(results []AlgoResult) {
 		html += fmt.Sprintf(`
     <div class="panel">
       <h3>%s</h3>
-      <canvas id="%s" width="400" height="400"></canvas>
+      <canvas id="%s" width="%d" height="%d"></canvas>
       <div class="info">
+		<p>UsedArea: %d</p>
+		<p>TotalArea: %d</p>
         <p>FillRate: %.2f%%</p>
         <p>Time: %d ns</p>
+		<p>Count: %d</p>
       </div>
     </div>
-`, res.Title, canvasID, res.FillRate*100, res.TimeUsed)
+`, res.Title, canvasID, res.w, res.h, res.usedS, res.totalS, res.FillRate*100, res.TimeUsed, len(res.Rects))
 	}
 
 	html += `</div><script>`
@@ -128,13 +182,12 @@ func generateComparisonHTML(results []AlgoResult) {
     if (x2 > maxX) maxX = x2;
     if (y2 > maxY) maxY = y2;
   });
-  const scale = Math.min(canvas.width / maxX, canvas.height / maxY);
   data.forEach((rect, i) => {
     const color = "#" + Math.floor(Math.random()*16777215).toString(16).padStart(6, "0");
-    const x = rect.x * scale;
-    const y = rect.y * scale;
-    const w = rect.w * scale;
-    const h = rect.l * scale;
+    const x = rect.x;
+    const y = rect.y;
+    const w = rect.w;
+    const h = rect.l;
     ctx.fillStyle = color;
     ctx.fillRect(x, y, w, h);
     ctx.strokeStyle = "black";
@@ -143,16 +196,26 @@ func generateComparisonHTML(results []AlgoResult) {
     ctx.font = "12px Arial";
     ctx.fillText(i + (isRotate[i] === 1 ? " (R)" : ""), x + 3, y + 12);
   });
+
 })();
 `, formatRects(res.Rects), formatRotateFlags(res.Rects), canvasID)
 	}
+	html += `
+	   const panels = document.querySelectorAll(".panel");
+	   const maxPageWidth = 1200;
+	   let totalContentWidth = 0;
+	   panels.forEach(panel => {
+	     totalContentWidth += panel.offsetWidth;
+	   });
+	   const zoom = Math.min(1, maxPageWidth / totalContentWidth);
+	   document.body.style.zoom = zoom.toString();
+	`
 	html += `</script></body></html>`
 	_ = os.MkdirAll("output", 0755)
-	err := os.WriteFile("output/compare.html", []byte(html), 0644)
+	path := filepath.Join("output", filename+".html")
+	err := os.WriteFile(path, []byte(html), 0644)
 	if err != nil {
-		fmt.Println("write file error:", err)
-	} else {
-		fmt.Println("Generated " + "output/compare.html")
+		return
 	}
 }
 
@@ -174,4 +237,35 @@ func formatRotateFlags(rects []pack.PackedRect) string {
 		}
 	}
 	return "[" + strings.Join(flags, ",") + "]"
+}
+
+func getTestData(path string) ([]pack.Rect, error) {
+	file, err := os.Open(path)
+	if err != nil {
+		return nil, err
+	}
+	defer file.Close()
+	scanner := bufio.NewScanner(file)
+	var reqPackedRect []pack.Rect
+	id := 0
+	for scanner.Scan() {
+		line := scanner.Text()
+		parts := strings.Fields(line)
+		w, err := strconv.Atoi(parts[0])
+		if err != nil {
+			return nil, fmt.Errorf("an error in parsing rectangle width: %w", err)
+		}
+		h, err := strconv.Atoi(parts[1])
+		if err != nil {
+			return nil, fmt.Errorf("an error in parsing rectangle height: %w", err)
+		}
+		rect := pack.NewRectById(w, h, id)
+		id++
+		reqPackedRect = append(reqPackedRect, rect)
+
+	}
+	if err := scanner.Err(); err != nil {
+		return nil, err
+	}
+	return reqPackedRect, nil
 }

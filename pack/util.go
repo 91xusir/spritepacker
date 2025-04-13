@@ -1,50 +1,257 @@
 package pack
 
 import (
+	"errors"
+	"golang.org/x/image/bmp"
+	"golang.org/x/image/tiff"
 	"image"
-	"log"
+	"image/color"
+	"image/jpeg"
+	"image/png"
+	"io"
 	"os"
 	"path/filepath"
+	"regexp"
 	"runtime"
+	"sort"
+	"strconv"
 	"strings"
 	"sync"
 )
 
-func maxInt(a, b int) int {
+// This file provides utility functions for image and file operations.
+// Image operations are based on the https://github.com/disintegration/imaging package.
+// Some implementations were translated with the help of https://chat.deepseek.com.
+// And a few are my own creations, haha.
+
+//---------------Math----------------
+
+// MaxInt returns the larger of a and b.
+func MaxInt(a, b int) int {
 	if a > b {
 		return a
 	}
 	return b
 }
-func minInt(a, b int) int {
+
+// MinInt returns the smaller of a and b.
+func MinInt(a, b int) int {
 	if a < b {
 		return a
 	}
 	return b
 }
-func Parallel(start, end int, fn func(i int)) {
-	numGoroutines := runtime.NumCPU()
-	if end-start < numGoroutines {
-		for i := start; i < end; i++ {
-			fn(i)
+
+// NextPowerOfTwo returns the next power of two of n.
+func NextPowerOfTwo(n int) int {
+	n--
+	n |= n >> 1
+	n |= n >> 2
+	n |= n >> 4
+	n |= n >> 8
+	n |= n >> 16
+	n++
+	return n
+}
+
+//---------------file--------------------
+
+// GetFilesInDirectory reads files in specified directory and returns file names slice
+func GetFilesInDirectory(dirPath string) ([]string, error) {
+	entries, err := os.ReadDir(dirPath)
+	if err != nil {
+		return nil, errors.New("failed to read directory: " + err.Error())
+	}
+	var fileNames []string
+	for _, entry := range entries {
+		if !entry.IsDir() {
+			fileNames = append(fileNames, entry.Name())
 		}
-		return
 	}
-	var wg sync.WaitGroup
-	batchSize := (end - start) / numGoroutines
-	if batchSize < 1 {
-		batchSize = 1
+	// sort file names in natural order
+	NaturalSort(fileNames)
+	return fileNames, nil
+}
+
+// GetLastFolderName 获取路径中的最后一个文件夹名称
+func GetLastFolderName(path string) string {
+	path = filepath.ToSlash(path)
+	path = strings.TrimRight(path, "/")
+	parts := strings.Split(path, "/")
+	for i := len(parts) - 1; i >= 0; i-- {
+		if parts[i] != "" {
+			return parts[i]
+		}
 	}
-	for i := start; i < end; i += batchSize {
-		wg.Add(1)
-		go func(from, to int) {
-			defer wg.Done()
-			for j := from; j < to && j < end; j++ {
-				fn(j)
+	return "atlas"
+}
+
+var chunkedRegex = regexp.MustCompile(`(\d+|\D+)`)
+
+func chunked(path string) []string {
+	return chunkedRegex.FindAllString(path, -1)
+}
+
+func NaturalLess(a, b string) bool {
+	chunksA := chunked(a)
+	chunksB := chunked(b)
+	for i := 0; i < len(chunksA) && i < len(chunksB); i++ {
+		aChunk := chunksA[i]
+		bChunk := chunksB[i]
+		if aChunk != bChunk {
+			aNum, aErr := strconv.Atoi(aChunk)
+			bNum, bErr := strconv.Atoi(bChunk)
+			if aErr == nil && bErr == nil {
+				return aNum < bNum
 			}
-		}(i, i+batchSize)
+			return aChunk < bChunk
+		}
 	}
-	wg.Wait()
+	return len(chunksA) < len(chunksB)
+}
+
+// NaturalSort sorts the items in natural order.
+func NaturalSort(items []string) {
+	sort.Slice(items, func(i, j int) bool {
+		return NaturalLess(items[i], items[j])
+	})
+}
+
+//----------------image--------------------
+
+type ImageFormat int
+
+const (
+	JPEG ImageFormat = iota
+	PNG
+	TIFF
+	BMP
+	WEBP
+)
+
+// Compression level
+type clv int
+
+const (
+	NoCompression      clv = 0 // No compression
+	BestSpeed          clv = 1 // Best speed
+	DefaultCompression clv = 2 // Default compression
+	BestCompression    clv = 3 // Best compression
+)
+
+type encodeImgOpt struct {
+	jpegQuality         int
+	pngCompressionLevel png.CompressionLevel
+	ttfCompressionLevel tiff.CompressionType
+	ttfPredictor        bool
+}
+type SetClv func(*encodeImgOpt)
+
+// WithCLV sets the compression level for the image.
+func WithCLV(clv clv) SetClv {
+	return func(opts *encodeImgOpt) {
+		switch clv {
+		case NoCompression:
+			opts.jpegQuality = 100
+			opts.pngCompressionLevel = png.NoCompression
+			opts.ttfCompressionLevel = tiff.Uncompressed
+		case BestSpeed:
+			opts.jpegQuality = 85
+			opts.pngCompressionLevel = png.BestSpeed
+			opts.ttfCompressionLevel = tiff.LZW
+			opts.ttfPredictor = false
+		case DefaultCompression:
+			opts.jpegQuality = 75
+			opts.pngCompressionLevel = png.DefaultCompression
+			opts.ttfCompressionLevel = tiff.Deflate
+			opts.ttfPredictor = true
+		case BestCompression:
+			opts.jpegQuality = 60
+			opts.pngCompressionLevel = png.BestCompression
+			opts.ttfCompressionLevel = tiff.Deflate
+			opts.ttfPredictor = true
+		default:
+			opts.jpegQuality = 75
+			opts.pngCompressionLevel = png.DefaultCompression
+			opts.ttfCompressionLevel = tiff.Deflate
+			opts.ttfPredictor = true
+		}
+	}
+}
+
+// EncImg encodes the image to the specified format and writes it to the writer.
+// Parameters:
+//   - w: the writer to write the encoded image
+//   - img: the image to encode
+//   - format: the image format to encode
+//   - compressionLevel: the compression level to use, default is NoCompression
+//
+// Returns:
+//   - error: an error if the format is unsupported or if encoding fails
+//
+// Supported formats:
+//   - JPEG
+//   - PNG
+//   - TIFF
+//   - BMP
+func EncImg(w io.Writer, img image.Image, format ImageFormat, compressionLevel ...SetClv) error {
+	opts := &encodeImgOpt{
+		jpegQuality:         100,
+		pngCompressionLevel: png.NoCompression,
+		ttfCompressionLevel: tiff.Uncompressed,
+		ttfPredictor:        false,
+	}
+	for _, clv := range compressionLevel {
+		clv(opts)
+	}
+
+	switch format {
+	case JPEG:
+		if nrgba, ok := img.(*image.NRGBA); ok && nrgba.Opaque() {
+			rgba := &image.RGBA{
+				Pix:    nrgba.Pix,
+				Stride: nrgba.Stride,
+				Rect:   nrgba.Rect,
+			}
+			return jpeg.Encode(w, rgba, &jpeg.Options{Quality: opts.jpegQuality})
+		}
+		return jpeg.Encode(w, img, &jpeg.Options{Quality: opts.jpegQuality})
+	case PNG:
+		encoder := png.Encoder{CompressionLevel: opts.pngCompressionLevel}
+		return encoder.Encode(w, img)
+	case TIFF:
+		return tiff.Encode(w, img, &tiff.Options{
+			Compression: opts.ttfCompressionLevel,
+			Predictor:   opts.ttfPredictor,
+		})
+	case BMP:
+		return bmp.Encode(w, img)
+	default:
+		return errors.New("unsupported image format")
+	}
+}
+
+// DecImg decodes an image from the given file path and returns it as an NRGBA image.
+// The function automatically detects the file format based on the file extension (e.g., .jpeg, .png, .bmp, .webp, .tiff).
+// It returns an error if the format is unsupported or if decoding fails.
+//
+// Supported formats:
+//   - JPEG
+//   - PNG
+//   - TIFF
+//   - BMP
+//   - WEBP
+func DecImg(filePath string) (image.Image, error) {
+	file, err := os.Open(filePath)
+	if err != nil {
+		return nil, err
+	}
+	defer file.Close()
+	img, _, err := image.Decode(file)
+	if err != nil {
+		return nil, err
+	}
+	return img, nil
 }
 
 // GetOpaqueBounds returns the bounds of the opaque area of the image.
@@ -119,31 +326,380 @@ func GetOpaqueBounds(img image.Image, tolerance uint8) image.Rectangle {
 	return image.Rect(minX, minY, maxX+1, maxY+1)
 }
 
-// GetFilesInDirectory reads files in specified directory and returns file names slice
-func GetFilesInDirectory(dirPath string) ([]string, error) {
-	entries, err := os.ReadDir(dirPath)
-	if err != nil {
-		log.Printf("Failed to read directory %s: %v", dirPath, err)
-		return nil, err
-	}
-	var fileNames []string
-	for _, entry := range entries {
-		if !entry.IsDir() {
-			fileNames = append(fileNames, entry.Name())
+// Rotate90 rotates the image 90 degrees counter-clockwise and returns the transformed image.
+func Rotate90(img image.Image) *image.NRGBA {
+	src := newScanner(img)
+	dstW := src.h
+	dstH := src.w
+	rowSize := dstW * 4
+	dst := image.NewNRGBA(image.Rect(0, 0, dstW, dstH))
+	Parallel(0, dstH, func(ys <-chan int) {
+		for dstY := range ys {
+			i := dstY * dst.Stride
+			srcX := dstH - dstY - 1
+			src.scan(srcX, 0, srcX+1, src.h, dst.Pix[i:i+rowSize])
 		}
-	}
-	return fileNames, nil
+	})
+	return dst
 }
 
-// GetLastFolderName 获取路径中的最后一个文件夹名称
-func GetLastFolderName(path string) string {
-	path = filepath.ToSlash(path)
-	path = strings.TrimRight(path, "/")
-	parts := strings.Split(path, "/")
-	for i := len(parts) - 1; i >= 0; i-- {
-		if parts[i] != "" {
-			return parts[i]
+// Rotate180 rotates the image 180 degrees counter-clockwise and returns the transformed image.
+func Rotate180(img image.Image) *image.NRGBA {
+	src := newScanner(img)
+	dstW := src.w
+	dstH := src.h
+	rowSize := dstW * 4
+	dst := image.NewNRGBA(image.Rect(0, 0, dstW, dstH))
+	Parallel(0, dstH, func(ys <-chan int) {
+		for dstY := range ys {
+			i := dstY * dst.Stride
+			srcY := dstH - dstY - 1
+			src.scan(0, srcY, src.w, srcY+1, dst.Pix[i:i+rowSize])
+			reverse(dst.Pix[i : i+rowSize])
+		}
+	})
+	return dst
+}
+
+// Rotate270 rotates the image 270 degrees counter-clockwise and returns the transformed image.
+func Rotate270(img image.Image) *image.NRGBA {
+	src := newScanner(img)
+	dstW := src.h
+	dstH := src.w
+	rowSize := dstW * 4
+	dst := image.NewNRGBA(image.Rect(0, 0, dstW, dstH))
+	Parallel(0, dstH, func(ys <-chan int) {
+		for dstY := range ys {
+			i := dstY * dst.Stride
+			srcX := dstY
+			src.scan(srcX, 0, srcX+1, src.h, dst.Pix[i:i+rowSize])
+			reverse(dst.Pix[i : i+rowSize])
+		}
+	})
+	return dst
+}
+
+type scanner struct {
+	image   image.Image
+	w, h    int
+	palette []color.NRGBA
+}
+
+func newScanner(img image.Image) *scanner {
+	s := &scanner{
+		image: img,
+		w:     img.Bounds().Dx(),
+		h:     img.Bounds().Dy(),
+	}
+	if img, ok := img.(*image.Paletted); ok {
+		s.palette = make([]color.NRGBA, len(img.Palette))
+		for i := 0; i < len(img.Palette); i++ {
+			s.palette[i] = color.NRGBAModel.Convert(img.Palette[i]).(color.NRGBA)
 		}
 	}
-	return "atlas"
+	return s
+}
+
+func (s *scanner) scan(x1, y1, x2, y2 int, dst []uint8) {
+	switch img := s.image.(type) {
+	case *image.NRGBA:
+		size := (x2 - x1) * 4
+		j := 0
+		i := y1*img.Stride + x1*4
+		if size == 4 {
+			for y := y1; y < y2; y++ {
+				d := dst[j : j+4 : j+4]
+				s := img.Pix[i : i+4 : i+4]
+				d[0] = s[0]
+				d[1] = s[1]
+				d[2] = s[2]
+				d[3] = s[3]
+				j += size
+				i += img.Stride
+			}
+		} else {
+			for y := y1; y < y2; y++ {
+				copy(dst[j:j+size], img.Pix[i:i+size])
+				j += size
+				i += img.Stride
+			}
+		}
+
+	case *image.NRGBA64:
+		j := 0
+		for y := y1; y < y2; y++ {
+			i := y*img.Stride + x1*8
+			for x := x1; x < x2; x++ {
+				s := img.Pix[i : i+8 : i+8]
+				d := dst[j : j+4 : j+4]
+				d[0] = s[0]
+				d[1] = s[2]
+				d[2] = s[4]
+				d[3] = s[6]
+				j += 4
+				i += 8
+			}
+		}
+
+	case *image.RGBA:
+		j := 0
+		for y := y1; y < y2; y++ {
+			i := y*img.Stride + x1*4
+			for x := x1; x < x2; x++ {
+				d := dst[j : j+4 : j+4]
+				a := img.Pix[i+3]
+				switch a {
+				case 0:
+					d[0] = 0
+					d[1] = 0
+					d[2] = 0
+					d[3] = a
+				case 0xff:
+					s := img.Pix[i : i+4 : i+4]
+					d[0] = s[0]
+					d[1] = s[1]
+					d[2] = s[2]
+					d[3] = a
+				default:
+					s := img.Pix[i : i+4 : i+4]
+					r16 := uint16(s[0])
+					g16 := uint16(s[1])
+					b16 := uint16(s[2])
+					a16 := uint16(a)
+					d[0] = uint8(r16 * 0xff / a16)
+					d[1] = uint8(g16 * 0xff / a16)
+					d[2] = uint8(b16 * 0xff / a16)
+					d[3] = a
+				}
+				j += 4
+				i += 4
+			}
+		}
+
+	case *image.RGBA64:
+		j := 0
+		for y := y1; y < y2; y++ {
+			i := y*img.Stride + x1*8
+			for x := x1; x < x2; x++ {
+				s := img.Pix[i : i+8 : i+8]
+				d := dst[j : j+4 : j+4]
+				a := s[6]
+				switch a {
+				case 0:
+					d[0] = 0
+					d[1] = 0
+					d[2] = 0
+				case 0xff:
+					d[0] = s[0]
+					d[1] = s[2]
+					d[2] = s[4]
+				default:
+					r32 := uint32(s[0])<<8 | uint32(s[1])
+					g32 := uint32(s[2])<<8 | uint32(s[3])
+					b32 := uint32(s[4])<<8 | uint32(s[5])
+					a32 := uint32(s[6])<<8 | uint32(s[7])
+					d[0] = uint8((r32 * 0xffff / a32) >> 8)
+					d[1] = uint8((g32 * 0xffff / a32) >> 8)
+					d[2] = uint8((b32 * 0xffff / a32) >> 8)
+				}
+				d[3] = a
+				j += 4
+				i += 8
+			}
+		}
+
+	case *image.Gray:
+		j := 0
+		for y := y1; y < y2; y++ {
+			i := y*img.Stride + x1
+			for x := x1; x < x2; x++ {
+				c := img.Pix[i]
+				d := dst[j : j+4 : j+4]
+				d[0] = c
+				d[1] = c
+				d[2] = c
+				d[3] = 0xff
+				j += 4
+				i++
+			}
+		}
+
+	case *image.Gray16:
+		j := 0
+		for y := y1; y < y2; y++ {
+			i := y*img.Stride + x1*2
+			for x := x1; x < x2; x++ {
+				c := img.Pix[i]
+				d := dst[j : j+4 : j+4]
+				d[0] = c
+				d[1] = c
+				d[2] = c
+				d[3] = 0xff
+				j += 4
+				i += 2
+			}
+		}
+
+	case *image.YCbCr:
+		j := 0
+		x1 += img.Rect.Min.X
+		x2 += img.Rect.Min.X
+		y1 += img.Rect.Min.Y
+		y2 += img.Rect.Min.Y
+
+		hy := img.Rect.Min.Y / 2
+		hx := img.Rect.Min.X / 2
+		for y := y1; y < y2; y++ {
+			iy := (y-img.Rect.Min.Y)*img.YStride + (x1 - img.Rect.Min.X)
+
+			var yBase int
+			switch img.SubsampleRatio {
+			case image.YCbCrSubsampleRatio444, image.YCbCrSubsampleRatio422:
+				yBase = (y - img.Rect.Min.Y) * img.CStride
+			case image.YCbCrSubsampleRatio420, image.YCbCrSubsampleRatio440:
+				yBase = (y/2 - hy) * img.CStride
+			}
+
+			for x := x1; x < x2; x++ {
+				var ic int
+				switch img.SubsampleRatio {
+				case image.YCbCrSubsampleRatio444, image.YCbCrSubsampleRatio440:
+					ic = yBase + (x - img.Rect.Min.X)
+				case image.YCbCrSubsampleRatio422, image.YCbCrSubsampleRatio420:
+					ic = yBase + (x/2 - hx)
+				default:
+					ic = img.COffset(x, y)
+				}
+
+				yy1 := int32(img.Y[iy]) * 0x10101
+				cb1 := int32(img.Cb[ic]) - 128
+				cr1 := int32(img.Cr[ic]) - 128
+
+				r := yy1 + 91881*cr1
+				if uint32(r)&0xff000000 == 0 {
+					r >>= 16
+				} else {
+					r = ^(r >> 31)
+				}
+
+				g := yy1 - 22554*cb1 - 46802*cr1
+				if uint32(g)&0xff000000 == 0 {
+					g >>= 16
+				} else {
+					g = ^(g >> 31)
+				}
+
+				b := yy1 + 116130*cb1
+				if uint32(b)&0xff000000 == 0 {
+					b >>= 16
+				} else {
+					b = ^(b >> 31)
+				}
+
+				d := dst[j : j+4 : j+4]
+				d[0] = uint8(r)
+				d[1] = uint8(g)
+				d[2] = uint8(b)
+				d[3] = 0xff
+
+				iy++
+				j += 4
+			}
+		}
+
+	case *image.Paletted:
+		j := 0
+		for y := y1; y < y2; y++ {
+			i := y*img.Stride + x1
+			for x := x1; x < x2; x++ {
+				c := s.palette[img.Pix[i]]
+				d := dst[j : j+4 : j+4]
+				d[0] = c.R
+				d[1] = c.G
+				d[2] = c.B
+				d[3] = c.A
+				j += 4
+				i++
+			}
+		}
+
+	default:
+		j := 0
+		b := s.image.Bounds()
+		x1 += b.Min.X
+		x2 += b.Min.X
+		y1 += b.Min.Y
+		y2 += b.Min.Y
+		for y := y1; y < y2; y++ {
+			for x := x1; x < x2; x++ {
+				r16, g16, b16, a16 := s.image.At(x, y).RGBA()
+				d := dst[j : j+4 : j+4]
+				switch a16 {
+				case 0xffff:
+					d[0] = uint8(r16 >> 8)
+					d[1] = uint8(g16 >> 8)
+					d[2] = uint8(b16 >> 8)
+					d[3] = 0xff
+				case 0:
+					d[0] = 0
+					d[1] = 0
+					d[2] = 0
+					d[3] = 0
+				default:
+					d[0] = uint8(((r16 * 0xffff) / a16) >> 8)
+					d[1] = uint8(((g16 * 0xffff) / a16) >> 8)
+					d[2] = uint8(((b16 * 0xffff) / a16) >> 8)
+					d[3] = uint8(a16 >> 8)
+				}
+				j += 4
+			}
+		}
+	}
+}
+
+func reverse(pix []uint8) {
+	if len(pix) <= 4 {
+		return
+	}
+	i := 0
+	j := len(pix) - 4
+	for i < j {
+		pi := pix[i : i+4 : i+4]
+		pj := pix[j : j+4 : j+4]
+		pi[0], pj[0] = pj[0], pi[0]
+		pi[1], pj[1] = pj[1], pi[1]
+		pi[2], pj[2] = pj[2], pi[2]
+		pi[3], pj[3] = pj[3], pi[3]
+		i += 4
+		j -= 4
+	}
+}
+
+//---------------other--------------------
+
+// Parallel  processes the data in separate goroutines.
+func Parallel(start, stop int, fn func(<-chan int)) {
+	count := stop - start
+	if count < 1 {
+		return
+	}
+	process := runtime.GOMAXPROCS(0)
+	if process > count {
+		process = count
+	}
+
+	c := make(chan int, count)
+	for i := start; i < stop; i++ {
+		c <- i
+	}
+	close(c)
+	var wg sync.WaitGroup
+	for i := 0; i < process; i++ {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			fn(c)
+		}()
+	}
+	wg.Wait()
 }

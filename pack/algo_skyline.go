@@ -40,28 +40,29 @@ type algoSkyline struct {
 	skyLineQueue skylineHeap // The smallest pile of skyline
 }
 
-func (p *algoSkyline) init(opt *Options) {
-	p.algoBasic.init(opt)
-	p.skyLineQueue = skylineHeap{}
-	heap.Init(&p.skyLineQueue)
-	p.skyLineQueue = append(p.skyLineQueue, skyline{x: 0, y: 0, len: p.w})
+func (algo *algoSkyline) init(opt *Options) {
+	algo.algoBasic.init(opt)
+	algo.skyLineQueue = skylineHeap{}
+	heap.Init(&algo.skyLineQueue)
+	algo.skyLineQueue = append(algo.skyLineQueue, skyline{x: 0, y: 0, len: algo.w})
 }
 
-func (p *algoSkyline) packing(reqRects []Rect) PackedResult {
+func (algo *algoSkyline) packing(reqRects []Rect) PackedResult {
 	totalArea := 0
 	packedRectList := make([]PackedRect, 0, len(reqRects))
 	used := make([]bool, len(reqRects))
-	for p.skyLineQueue.Len() != 0 && len(packedRectList) < len(reqRects) {
-		skyLine := heap.Pop(&p.skyLineQueue).(skyline)
-		hl, hr := p.getHLHR(skyLine)
-		maxRectIndex, maxScore, isRotate := p.selectMaxScoreRect(skyLine, hl, hr, used, reqRects)
+	for algo.skyLineQueue.Len() != 0 && len(packedRectList) < len(reqRects) {
+		skyLine := heap.Pop(&algo.skyLineQueue).(skyline)
+		hl, hr := algo.getHLHR(skyLine)
+		maxRectIndex, maxScore, isRotate := algo.selectMaxScoreRect(skyLine, hl, hr, used, reqRects)
 		if maxScore >= 0 {
-			packedRect := p.placeRect(maxRectIndex, skyLine, isRotate, hl, hr, maxScore, reqRects)
+			packedRect := algo.placeRect(maxRectIndex, skyLine, isRotate, hl, hr, maxScore, reqRects)
+			//removePadding(&packedRect, algo.padding)
 			packedRectList = append(packedRectList, packedRect)
 			used[maxRectIndex] = true
-			totalArea += reqRects[maxRectIndex].W * reqRects[maxRectIndex].H
+			totalArea += reqRects[maxRectIndex].Area()
 		} else {
-			p.combineSkylines(skyLine)
+			algo.combineSkylines(skyLine)
 		}
 	}
 	unpackedRects := make([]Rect, 0)
@@ -70,8 +71,8 @@ func (p *algoSkyline) packing(reqRects []Rect) PackedResult {
 			unpackedRects = append(unpackedRects, reqRects[i])
 		}
 	}
-	fillRate := float64(totalArea) / float64(p.w*p.h)
-	bin := NewBin(p.w, p.h, packedRectList, totalArea, fillRate)
+	fillRate := float64(totalArea) / float64(algo.w*algo.h)
+	bin := NewBin(algo.w, algo.h, packedRectList, totalArea, fillRate)
 
 	return PackedResult{
 		Bin:           bin,
@@ -79,12 +80,19 @@ func (p *algoSkyline) packing(reqRects []Rect) PackedResult {
 	}
 }
 
+func (algo *algoSkyline) reset(w, h int) {
+	algo.w, algo.h = w, h
+	algo.skyLineQueue = skylineHeap{}
+	heap.Init(&algo.skyLineQueue)
+	algo.skyLineQueue = append(algo.skyLineQueue, skyline{x: 0, y: 0, len: algo.w})
+}
+
 // getHLHR selects the highest and lowest skyline
-func (p *algoSkyline) getHLHR(skyLine skyline) (int, int) {
-	hl := p.h - skyLine.y
-	hr := p.h - skyLine.y
+func (algo *algoSkyline) getHLHR(skyLine skyline) (int, int) {
+	hl := algo.h - skyLine.y
+	hr := algo.h - skyLine.y
 	count := 0
-	for _, line := range p.skyLineQueue {
+	for _, line := range algo.skyLineQueue {
 		if line.x+line.len == skyLine.x {
 			hl = line.y - skyLine.y
 			count++
@@ -100,19 +108,19 @@ func (p *algoSkyline) getHLHR(skyLine skyline) (int, int) {
 }
 
 // selectMaxScoreRect selects the rectangle with the highest score
-func (p *algoSkyline) selectMaxScoreRect(skyLine skyline, hl, hr int, used []bool, reqRects []Rect) (int, int, bool) {
+func (algo *algoSkyline) selectMaxScoreRect(skyLine skyline, hl, hr int, used []bool, reqRects []Rect) (int, int, bool) {
 	maxRectIndex, maxScore := -1, -1
 	isRotate := false
 	for i := range reqRects {
 		if !used[i] {
-			score := p.score(reqRects[i].W, reqRects[i].H, skyLine, hl, hr)
+			score := algo.score(reqRects[i].W, reqRects[i].H, skyLine, hl, hr)
 			if score > maxScore {
 				maxScore = score
 				maxRectIndex = i
 				isRotate = false
 			}
-			if p.allowRotate {
-				rotateScore := p.score(reqRects[i].H, reqRects[i].W, skyLine, hl, hr)
+			if algo.allowRotate {
+				rotateScore := algo.score(reqRects[i].H, reqRects[i].W, skyLine, hl, hr)
 				if rotateScore > maxScore {
 					maxScore = rotateScore
 					maxRectIndex = i
@@ -125,53 +133,53 @@ func (p *algoSkyline) selectMaxScoreRect(skyLine skyline, hl, hr int, used []boo
 }
 
 // placeRect places the rectangle at the specified position
-func (p *algoSkyline) placeRect(maxRectIndex int, skyLine skyline, isRotate bool, hl, hr, maxScore int, reqRects []Rect) PackedRect {
+func (algo *algoSkyline) placeRect(maxRectIndex int, skyLine skyline, isRotate bool, hl, hr, maxScore int, reqRects []Rect) PackedRect {
 	if (hl >= hr && maxScore == 2) || (!(hl >= hr) && (maxScore == 4 || maxScore == 0)) {
-		return p.placeRight(reqRects[maxRectIndex], skyLine, isRotate)
+		return algo.placeRight(reqRects[maxRectIndex], skyLine, isRotate)
 	}
-	return p.placeLeft(reqRects[maxRectIndex], skyLine, isRotate)
+	return algo.placeLeft(reqRects[maxRectIndex], skyLine, isRotate)
 }
 
 // placeLeft Place the rectangle to the left
 
-func (p *algoSkyline) placeLeft(rect Rect, skyLine skyline, isRotate bool) PackedRect {
+func (algo *algoSkyline) placeLeft(rect Rect, skyLine skyline, isRotate bool) PackedRect {
 	packedRect := NewRectPacked(skyLine.x, skyLine.y, rect)
 	if isRotate {
 		packedRect = packedRect.Rotated()
 	}
-	p.addSkyLineInQueue(skyLine.x, skyLine.y+packedRect.H, packedRect.W)
-	p.addSkyLineInQueue(skyLine.x+packedRect.W, skyLine.y, skyLine.len-packedRect.W)
+	algo.addSkyLineInQueue(skyLine.x, skyLine.y+packedRect.H, packedRect.W)
+	algo.addSkyLineInQueue(skyLine.x+packedRect.W, skyLine.y, skyLine.len-packedRect.W)
 	return packedRect
 }
 
 // placeRight Place the rectangle to the right
 
-func (p *algoSkyline) placeRight(rect Rect, skyLine skyline, isRotate bool) PackedRect {
+func (algo *algoSkyline) placeRight(rect Rect, skyLine skyline, isRotate bool) PackedRect {
 	var packedRect PackedRect
 	if !isRotate {
 		packedRect = NewRectPacked(skyLine.x+skyLine.len-rect.W, skyLine.y, rect)
 	} else {
 		packedRect = NewRectPacked(skyLine.x+skyLine.len-rect.H, skyLine.y, rect).Rotated()
 	}
-	p.addSkyLineInQueue(skyLine.x, skyLine.y, skyLine.len-packedRect.W)
-	p.addSkyLineInQueue(packedRect.X, skyLine.y+packedRect.H, packedRect.W)
+	algo.addSkyLineInQueue(skyLine.x, skyLine.y, skyLine.len-packedRect.W)
+	algo.addSkyLineInQueue(packedRect.X, skyLine.y+packedRect.H, packedRect.W)
 	return packedRect
 }
 
 // addSkyLineInQueue adds a skyline to the queue
-func (p *algoSkyline) addSkyLineInQueue(x, y, len int) {
+func (algo *algoSkyline) addSkyLineInQueue(x, y, len int) {
 	if len > 0 {
 		skyLine := skyline{x: x, y: y, len: len}
-		heap.Push(&p.skyLineQueue, skyLine)
+		heap.Push(&algo.skyLineQueue, skyLine)
 	}
 }
 
-func (p *algoSkyline) combineSkylines(skyLine skyline) {
+func (algo *algoSkyline) combineSkylines(skyLine skyline) {
 	b := false
-	for i, line := range p.skyLineQueue {
+	for i, line := range algo.skyLineQueue {
 		if skyLine.y <= line.y {
 			if skyLine.x == line.x+line.len {
-				heap.Remove(&p.skyLineQueue, i)
+				heap.Remove(&algo.skyLineQueue, i)
 				b = true
 				skyLine.x = line.x
 				skyLine.y = line.y
@@ -179,7 +187,7 @@ func (p *algoSkyline) combineSkylines(skyLine skyline) {
 				break
 			}
 			if skyLine.x+skyLine.len == line.x {
-				heap.Remove(&p.skyLineQueue, i)
+				heap.Remove(&algo.skyLineQueue, i)
 				b = true
 				skyLine.y = line.y
 				skyLine.len = line.len + skyLine.len
@@ -188,13 +196,13 @@ func (p *algoSkyline) combineSkylines(skyLine skyline) {
 		}
 	}
 	if b {
-		heap.Push(&p.skyLineQueue, skyLine)
+		heap.Push(&algo.skyLineQueue, skyLine)
 	}
 }
 
 // score calculates the score of the rectangle at the specified position
-func (p *algoSkyline) score(w, h int, skyLine skyline, hl, hr int) int {
-	if skyLine.len < w || skyLine.y+h > p.h {
+func (algo *algoSkyline) score(w, h int, skyLine skyline, hl, hr int) int {
+	if skyLine.len < w || skyLine.y+h > algo.h {
 		return -1
 	}
 	var high, low int

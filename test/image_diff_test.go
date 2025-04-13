@@ -10,7 +10,8 @@ import (
 	"testing"
 )
 
-func Test_image_diff(t *testing.T) {
+// image diff test
+func TestImageDiff(t *testing.T) {
 	inputFolder := "input"
 	outputFolder := "output"
 	diffs := compareFolders(inputFolder, outputFolder)
