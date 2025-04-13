@@ -62,15 +62,16 @@ func GetFilesInDirectory(dirPath string) ([]string, error) {
 	if err != nil {
 		return nil, errors.New("failed to read directory: " + err.Error())
 	}
-	var fileNames []string
+	var paths []string = make([]string, 0, len(entries))
 	for _, entry := range entries {
 		if !entry.IsDir() {
-			fileNames = append(fileNames, entry.Name())
+			path := filepath.Join(dirPath, entry.Name())
+			paths = append(paths, path) // 使用 append 添加元素
 		}
 	}
 	// sort file names in natural order
-	NaturalSort(fileNames)
-	return fileNames, nil
+	NaturalSort(paths)
+	return paths, nil
 }
 
 // GetLastFolderName 获取路径中的最后一个文件夹名称
@@ -161,7 +162,7 @@ func WithCLV(clv clv) SetClv {
 			opts.ttfCompressionLevel = tiff.LZW
 			opts.ttfPredictor = false
 		case DefaultCompression:
-			opts.jpegQuality = 75
+			opts.jpegQuality = jpeg.DefaultQuality
 			opts.pngCompressionLevel = png.DefaultCompression
 			opts.ttfCompressionLevel = tiff.Deflate
 			opts.ttfPredictor = true
@@ -177,6 +178,61 @@ func WithCLV(clv clv) SetClv {
 			opts.ttfPredictor = true
 		}
 	}
+}
+
+func SaveImgExt(fileName string, img image.Image, compressionLevel ...SetClv) error {
+	fileName = strings.ToLower(fileName)
+	ext := filepath.Ext(fileName)
+	if ext == "" {
+		ext = ".png"
+	}
+	var format ImageFormat
+	switch ext {
+	case ".jpg", ".jpeg":
+		format = JPEG
+	case ".png":
+		format = PNG
+	case ".tiff":
+		format = TIFF
+	case ".bmp":
+		format = BMP
+	default:
+		return errors.New("unsupported image format")
+	}
+	pathName := strings.TrimSuffix(fileName, ext)
+	return SaveImg(pathName, img, format, compressionLevel...)
+}
+
+func SaveImg(pathName string, img image.Image, format ImageFormat, compressionLevel ...SetClv) error {
+	opts := &encodeImgOpt{
+		jpegQuality:         jpeg.DefaultQuality,
+		pngCompressionLevel: png.DefaultCompression,
+		ttfCompressionLevel: tiff.Deflate,
+		ttfPredictor:        true,
+	}
+	for _, clv := range compressionLevel {
+		clv(opts)
+	}
+	var ext string
+	switch format {
+	case JPEG:
+		ext = ".jpeg"
+	case PNG:
+		ext = ".png"
+	case TIFF:
+		ext = ".tiff"
+	case BMP:
+		ext = ".bmp"
+	default:
+		return errors.New("unsupported image format")
+	}
+	pathName = strings.TrimSuffix(pathName, filepath.Ext(pathName)) + ext
+	file, err := os.Create(pathName)
+	if err != nil {
+		return err
+	}
+	defer file.Close()
+	return EncImg(file, img, format, compressionLevel...)
 }
 
 // EncImg encodes the image to the specified format and writes it to the writer.
@@ -196,10 +252,10 @@ func WithCLV(clv clv) SetClv {
 //   - BMP
 func EncImg(w io.Writer, img image.Image, format ImageFormat, compressionLevel ...SetClv) error {
 	opts := &encodeImgOpt{
-		jpegQuality:         100,
-		pngCompressionLevel: png.NoCompression,
-		ttfCompressionLevel: tiff.Uncompressed,
-		ttfPredictor:        false,
+		jpegQuality:         jpeg.DefaultQuality,
+		pngCompressionLevel: png.DefaultCompression,
+		ttfCompressionLevel: tiff.Deflate,
+		ttfPredictor:        true,
 	}
 	for _, clv := range compressionLevel {
 		clv(opts)
@@ -231,23 +287,24 @@ func EncImg(w io.Writer, img image.Image, format ImageFormat, compressionLevel .
 	}
 }
 
-// DecImg decodes an image from the given file path and returns it as an NRGBA image.
-// The function automatically detects the file format based on the file extension (e.g., .jpeg, .png, .bmp, .webp, .tiff).
-// It returns an error if the format is unsupported or if decoding fails.
-//
+func LoadImg(pathName string) (image.Image, error) {
+	file, err := os.Open(pathName)
+	if err != nil {
+		return nil, err
+	}
+	defer file.Close()
+	return DecImg(file)
+}
+
+// DecImg
 // Supported formats:
 //   - JPEG
 //   - PNG
 //   - TIFF
 //   - BMP
 //   - WEBP
-func DecImg(filePath string) (image.Image, error) {
-	file, err := os.Open(filePath)
-	if err != nil {
-		return nil, err
-	}
-	defer file.Close()
-	img, _, err := image.Decode(file)
+func DecImg(r io.Reader) (image.Image, error) {
+	img, _, err := image.Decode(r)
 	if err != nil {
 		return nil, err
 	}

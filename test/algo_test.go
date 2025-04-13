@@ -3,11 +3,11 @@ package spritepacker
 import (
 	"bufio"
 	"fmt"
+	"github.com/91xusir/spritepacker/pack"
 	"math/rand"
 	"os"
 	"path/filepath"
 	"slices"
-	"spritepacker/pack"
 	"strconv"
 	"strings"
 	"testing"

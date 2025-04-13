@@ -30,6 +30,7 @@ func NewOptions() *Options {
 	return &Options{
 		maxW:               512,
 		maxH:               512,
+		name:               "atlas",
 		autoSize:           false,
 		padding:            0,
 		algorithm:          AlgoBasic,

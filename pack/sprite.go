@@ -22,7 +22,7 @@ type Sprite struct {
 	Filepath    string    `json:"filepath"`
 	Frame       Rectangle `json:"frame"`
 	SrcRect     Size      `json:"srcRect"`
-	TrimmedRect Rectangle `json:"trimmedRect,omitempty"`
+	TrimmedRect Rectangle `json:"trimmedRect,omitzero"`
 	Rotated     bool      `json:"rotated"`
 	Trimmed     bool      `json:"trimmed"`
 }
