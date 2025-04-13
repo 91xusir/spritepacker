@@ -1,5 +1,5 @@
 /*
-Package spritepacker provides a command-line tool for sprite atlas packing and unpacking.
+Package main provides a command-line tool for sprite atlas packing and unpacking.
 
 This tool supports:
 - Creating optimized sprite atlases from individual images
@@ -53,7 +53,7 @@ The package includes:
 - Sprite trimming and optimization features
 - JSON metadata generation
 */
-package spritepacker
+package main
 
 import (
 	"encoding/json"
