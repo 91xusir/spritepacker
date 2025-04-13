@@ -11,7 +11,15 @@ import (
 
 func TestSpritePacker(t *testing.T) {
 	// Step 1: Create packing options and set the maximum atlas size to 4096x4096
-	options := pack.NewOptions().MaxSize(4096, 4096)
+	options := pack.NewOptions().MaxSize(4096, 4096).
+		Trim(true).
+		Sort(true).
+		Padding(0).
+		AllowRotate(true).
+		Algorithm(pack.AlgoMaxRects).
+		Heuristic(pack.BestAreaFit).
+		AutoSize(true).
+		PowerOfTwo(true)
 
 	// Optional: Validate the options. If invalid, an error will be returned.
 	// Here we ignore the error for demonstration purposes.

@@ -1,6 +1,9 @@
 package pack
 
-import "fmt"
+import (
+	"fmt"
+	"image"
+)
 
 // Rect represents an immutable rectangle using value semantics.
 type Rect struct {
@@ -63,6 +66,18 @@ func (r PackedRect) Rotated() PackedRect {
 		X:         r.X,
 		Y:         r.Y,
 		IsRotated: !r.IsRotated,
+	}
+}
+
+func (r PackedRect) ToImageRect() image.Rectangle {
+	return image.Rect(r.X, r.Y, r.X+r.W, r.Y+r.H)
+}
+func (r PackedRect) ToRectangle() Rectangle {
+	return Rectangle{
+		X: r.X,
+		Y: r.Y,
+		W: r.W,
+		H: r.H,
 	}
 }
 

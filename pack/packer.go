@@ -118,21 +118,21 @@ func (p *Packer) PackSprites(spritePaths []string) (*SpriteAtlas, []image.Image,
 		if len(packedResult.Bin.PackedRects) == 0 {
 			break
 		}
+		atlasSize := Size{W: packedResult.Bin.W, H: packedResult.Bin.H}
+		// if power of two
+		if p.option.powerOfTwo {
+			atlasSize = atlasSize.PowerOfTwo()
+		}
 		// create atlas
 		atlas := Atlas{
 			Name:    fmt.Sprintf("%s_%d", p.option.name, atlasIndex),
-			Size:    Size{W: packedResult.Bin.W, H: packedResult.Bin.H},
+			Size:    atlasSize,
 			Sprites: make([]Sprite, len(packedResult.Bin.PackedRects)),
 		}
 		for i, rect := range packedResult.Bin.PackedRects {
 			atlas.Sprites[i] = Sprite{
-				Filepath: spritePaths[rect.Id], // always use filepath, not filename
-				Frame: Rectangle{
-					X: rect.X,
-					Y: rect.Y,
-					W: rect.W,
-					H: rect.H,
-				},
+				Filepath:    spritePaths[rect.Id], // always use filepath, not filename
+				Frame:       rect.ToRectangle(),
 				SrcRect:     srcRects[rect.Id],
 				TrimmedRect: trimmedRectMap[rect.Id],
 				Rotated:     rect.IsRotated,
@@ -193,12 +193,12 @@ func (p *Packer) autosize(result PackedResult) (PackedResult, bool) {
 	}
 	return bestResult, true
 }
-
 func (p *Packer) getImageRects(fileNames []string) ([]Rect, []Size, map[int]Rectangle) {
-	reqRects := make([]Rect, len(fileNames))
-	srcRects := make([]Size, len(fileNames))
+	reqRects := make([]Rect, 0, len(fileNames))
+	srcRects := make([]Size, 0, len(fileNames))
 	trimmedRectMap := make(map[int]Rectangle)
-	for id, fileName := range fileNames {
+
+	for _, fileName := range fileNames {
 		file, err := os.Open(fileName)
 		if err != nil {
 			continue // Skip unreadable files
@@ -209,30 +209,32 @@ func (p *Packer) getImageRects(fileNames []string) ([]Rect, []Size, map[int]Rect
 			if err != nil {
 				continue // Skip non-image files
 			}
-			srcRects[id] = Size{
+			srcSize := Size{
 				W: src.Bounds().Dx(),
 				H: src.Bounds().Dy(),
 			}
 			trimRect := GetOpaqueBounds(src, p.option.tolerance)
-			trimmedRectMap[id] = Rectangle{
+			trimmedRect := Rectangle{
 				X: trimRect.Min.X,
 				Y: trimRect.Min.Y,
 				W: trimRect.Dx(),
 				H: trimRect.Dy(),
 			}
-			reqRects[id] = NewRectById(trimRect.Dx(), trimRect.Dy(), id)
-
+			srcRects = append(srcRects, srcSize)
+			reqRects = append(reqRects, NewRectById(trimRect.Dx(), trimRect.Dy(), len(reqRects)))
+			trimmedRectMap[len(reqRects)-1] = trimmedRect
 		} else {
 			cfg, _, err := image.DecodeConfig(file)
 			file.Close()
 			if err != nil {
 				continue // Skip non-image files
 			}
-			srcRects[id] = Size{
+			srcSize := Size{
 				W: cfg.Width,
 				H: cfg.Height,
 			}
-			reqRects[id] = NewRectById(cfg.Width, cfg.Height, id)
+			srcRects = append(srcRects, srcSize)
+			reqRects = append(reqRects, NewRectById(cfg.Width, cfg.Height, len(reqRects)))
 		}
 	}
 
@@ -243,10 +245,6 @@ func (p *Packer) createAtlasImages(atlas *SpriteAtlas) ([]image.Image, error) {
 	var atlasImages []image.Image = make([]image.Image, len(atlas.Atlases))
 	for i := range atlas.Atlases {
 		atlasSize := atlas.Atlases[i].Size
-		if p.option.powerOfTwo {
-			atlasSize.W = NextPowerOfTwo(atlasSize.W)
-			atlasSize.H = NextPowerOfTwo(atlasSize.H)
-		}
 		// create atlas image
 		atlasImg := image.NewNRGBA(image.Rect(0, 0, atlasSize.W, atlasSize.H))
 		for j := range atlas.Atlases[i].Sprites {
@@ -263,14 +261,14 @@ func (p *Packer) createAtlasImages(atlas *SpriteAtlas) ([]image.Image, error) {
 			}
 			// if rotated
 			if sprite.Rotated {
-				spriteImg = Rotate90(spriteImg)
+				spriteImg = Rotate270(spriteImg)
 				srcH := sprite.SrcRect.H
 				newX := srcH - trimmedRect.Y - trimmedRect.H
 				newY := trimmedRect.X
 				srcLeftTopPoint.X = newX
 				srcLeftTopPoint.Y = newY
 			}
-			ditPosition := image.Rect(sprite.Frame.X, sprite.Frame.Y, sprite.Frame.X+sprite.Frame.W, sprite.Frame.Y+sprite.Frame.H)
+			ditPosition := sprite.Frame.ToImageRect()
 			draw.Draw(atlasImg, ditPosition, spriteImg, srcLeftTopPoint, draw.Src)
 			atlasImages[i] = atlasImg
 		}
@@ -360,13 +358,21 @@ func UnpackSprites(jsonPath string, fn ...UnpackOpts) error {
 				Y: sprite.Frame.Y,
 			}
 			draw.Draw(subImg, subImg.Bounds(), atlasImg, srcLeftTopPoint, draw.Src)
+			// if rotated
+			if sprite.Rotated {
+				subImg = Rotate90(subImg)
+			}
+			// if trimmed
 			if sprite.Trimmed {
 				img := image.NewNRGBA(image.Rect(0, 0, sprite.SrcRect.W, sprite.SrcRect.H))
-				draw.Draw(img, img.Bounds(), subImg, image.Point{X: sprite.TrimmedRect.X, Y: sprite.TrimmedRect.Y}, draw.Src)
+				destRect := image.Rect(
+					sprite.TrimmedRect.X,
+					sprite.TrimmedRect.Y,
+					sprite.TrimmedRect.X+subImg.Bounds().Dx(),
+					sprite.TrimmedRect.Y+subImg.Bounds().Dy(),
+				)
+				draw.Draw(img, destRect, subImg, image.Point{}, draw.Src)
 				subImg = img
-			}
-			if sprite.Rotated {
-				subImg = Rotate270(subImg)
 			}
 			err := SaveImgExt(outputPath, subImg)
 			if err != nil {
