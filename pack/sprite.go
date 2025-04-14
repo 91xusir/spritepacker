@@ -19,10 +19,21 @@ type Atlas struct {
 }
 
 type Sprite struct {
-	Filepath    string `json:"filepath"`
+	FileName    string `json:"filename"`
 	Frame       Rect   `json:"frame"`
 	SrcRect     Size   `json:"srcRect"`
 	TrimmedRect Rect   `json:"trimmedRect,omitzero"`
 	Rotated     bool   `json:"rotated"`
 	Trimmed     bool   `json:"trimmed"`
+}
+
+func (s Sprite) Clone() Sprite {
+	return Sprite{
+		FileName:    s.FileName,
+		Frame:       s.Frame.Clone(),
+		SrcRect:     s.SrcRect.Clone(),
+		TrimmedRect: s.TrimmedRect.Clone(),
+		Rotated:     s.Rotated,
+		Trimmed:     s.Trimmed,
+	}
 }

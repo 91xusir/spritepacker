@@ -14,27 +14,26 @@ Usage:
 
 Packing Options:
 
-	-input string      Input directory containing sprite images (required for packing)
-	-output string     Output directory (default "output")
+	-I string      Input directory containing sprite images (required for packing)
+	-o string     Output directory (default "output")
 	-maxw int          Maximum atlas width (default 2048)
 	-maxh int          Maximum atlas height (default 2048)
-	-padding int       Padding between sprites (default 2)
-	-rotate            Allow sprite rotation to save space
+	-pad int       Padding between sprites (default 2)
+	-rot            Allow sprite rotation to save space
 	-pot               Force power-of-two atlas dimensions
-	-pma               Use premultiplied alpha
 	-name string       Base name for output files (default "atlas")
 	-sort              Sorts sprites before packing (default true)
 	-trim              Trims transparent edges (default true)
-	-tolerance int     Transparency tolerance for trimming (0-255, default 1)
+	-tol int     Transparency tolerance for trimming (0-255, default 1)
 	-same              Enable identical image detection (default true)
 	-algo int          Packing algorithm (0=Basic, 1=Skyline, 2=MaxRects)
-	-heuristic int     MaxRects heuristic (0-4, see docs)
+	-heur int     MaxRects heuristic (0-4, see docs)
 
 Unpacking Options:
 
-	-unpack string     JSON file to unpack (required for unpacking)
+	-u string     JSON file to unpack (required for unpacking)
 	-img string        Atlas image path (optional, will search by name)
-	-output string     Output directory for unpacked sprites
+	-o string     Output directory for unpacked sprites
 
 Examples:
 
@@ -76,27 +75,26 @@ func flagArgs(opts *pack.Options) error {
 	// ---- atlas layout options ----
 	maxW := flag.Int("maxw", 2048, "Maximum atlas width")
 	maxH := flag.Int("maxh", 2048, "Maximum atlas height")
-	autoSize := flag.Bool("autosize", false, "Automatically adjust atlas size based on input")
-	padding := flag.Int("padding", 2, "Padding between sprites in pixels")
-	allowRotate := flag.Bool("rotate", false, "Allow sprite rotation to save space")
+	autoSize := flag.Bool("auto", false, "Automatically adjust atlas size based on input")
+	padding := flag.Int("pad", 0, "Padding between sprites in pixels")
+	allowRotate := flag.Bool("rot", false, "Allow sprite rotation to save space")
 	powerOfTwo := flag.Bool("pot", false, "Force atlas size to power of two")
-	preMultipliedAlpha := flag.Bool("pma", false, "Use premultiplied alpha for output")
 	name = *flag.String("name", "atlas", "Atlas name")
 
 	// ---- sprite processing options ----
-	sort := flag.Bool("sort", true, "Sort sprites by Area before packing")
-	trim := flag.Bool("trim", true, "Trim transparent edges from sprites")
-	tolerance := flag.Int("tolerance", 1, "Tolerance level for trimming (0-255)")
-	sameDetect := flag.Bool("same", true, "Enable identical image detection")
+	sort := flag.Bool("sort", false, "Sort sprites by Area before packing")
+	trim := flag.Bool("trim", false, "Trim transparent edges from sprites")
+	tolerance := flag.Int("tol", 0, "Tolerance level for trimming (0-255)")
+	sameDetect := flag.Bool("same", false, "Enable identical image detection")
 
 	// ---- algorithm settings ----
 	algorithm := flag.Int("algo", int(pack.AlgoSkyline), "Packing algorithm: 0=Basic, 1=Skyline, 2=MaxRects")
-	heuristic := flag.Int("heuristic", int(pack.BestShortSideFit), "Heuristic for MaxRects (if used) 0=BestShortSideFit, 1=BestLongSideFit, 2=BestAreaFit, 3=BottomLeftRule, 4=ContactPointRule")
+	heuristic := flag.Int("heur", int(pack.BestShortSideFit), "Heuristic for MaxRects (if used) 0=BestShortSideFit, 1=BestLongSideFit, 2=BestAreaFit, 3=BottomLeftRule, 4=ContactPointRule")
 
 	// ---- general settings ----
-	flag.StringVar(&inputPath, "input", "", "Input directory containing sprite images")
-	flag.StringVar(&outputPath, "output", "output", "Output directory to save atlases or unpacked sprites")
-	flag.StringVar(&unpackJsonPath, "unpack", "", "Unpack from JSON file")
+	flag.StringVar(&inputPath, "i", "", "Input directory containing sprite images")
+	flag.StringVar(&outputPath, "o", "", "Output directory to save atlases or unpacked sprites")
+	flag.StringVar(&unpackJsonPath, "u", "", "Unpack from JSON file")
 	flag.StringVar(&atlasImgPath, "img", "", "Atlas image path for unpacking")
 
 	flag.Parse()
@@ -107,7 +105,6 @@ func flagArgs(opts *pack.Options) error {
 		Padding(*padding).
 		AllowRotate(*allowRotate).
 		PowerOfTwo(*powerOfTwo).
-		PmAlpha(*preMultipliedAlpha).
 		Sort(*sort).
 		Trim(*trim).
 		Tolerance(*tolerance).
@@ -129,9 +126,7 @@ func main() {
 	if inputPath == "" {
 		panic("input path is empty")
 	}
-	spritePaths, err := pack.GetFilesInDirectory(inputPath)
-	check(err)
-	spriteAtlasInfo, atlasImages, err := pack.NewPacker(opts).PackSprites(spritePaths)
+	spriteAtlasInfo, atlasImages, err := pack.NewPacker(opts).PackSprites(inputPath)
 	check(err)
 	for i := range atlasImages {
 		outputPath := filepath.Join(outputPath, spriteAtlasInfo.Atlases[i].Name)
@@ -139,7 +134,7 @@ func main() {
 	}
 	jsonBytes, err := json.MarshalIndent(spriteAtlasInfo, "", "  ")
 	check(err)
-	check(os.WriteFile(filepath.Join(outputPath, name), jsonBytes, os.ModePerm))
+	check(os.WriteFile(filepath.Join(outputPath, name+".json"), jsonBytes, os.ModePerm))
 }
 
 func check(err error) {

@@ -12,14 +12,15 @@ import (
 func TestSpritePacker(t *testing.T) {
 	// Step 1: Create packing options and set the maximum atlas size to 4096x4096
 	options := pack.NewOptions().MaxSize(4096, 4096).
-		Trim(true).
-		Sort(true).
-		Padding(-1).
-		AllowRotate(true).
-		Algorithm(pack.AlgoSkyline).
+		Trim(false).
+		Sort(false).
+		Padding(0).
+		AllowRotate(false).
+		Algorithm(pack.AlgoBasic).
 		Heuristic(pack.ContactPointFit).
-		AutoSize(true).
-		PowerOfTwo(true)
+		SameDetect(true).
+		AutoSize(false).
+		PowerOfTwo(false)
 
 	// Optional: Validate the options. If invalid, an error will be returned.
 	// Here we ignore the error for demonstration purposes.
@@ -28,11 +29,8 @@ func TestSpritePacker(t *testing.T) {
 	// Step 2: Create the sprite packer using the configured options
 	spritePacker := pack.NewPacker(options)
 
-	// Step 3: Collect all sprite image paths from the "input" directory
-	spriteImgPaths, _ := pack.GetFilesInDirectory("input")
-
 	// Step 4: Pack all sprite images and generate atlas metadata and images
-	spriteAtlasInfo, atlasImages, _ := spritePacker.PackSprites(spriteImgPaths)
+	spriteAtlasInfo, atlasImages, _ := spritePacker.PackSprites("input")
 
 	t.Logf("spriteAtlas: %v", spriteAtlasInfo)
 

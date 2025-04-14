@@ -15,33 +15,31 @@ type Options struct {
 	allowRotate bool      // allow rotation
 
 	//----atlas----
-	name               string // atlas name
-	sort               bool   // sorting by file name
-	trim               bool   // trim transparent pixels from the image
-	tolerance          uint8  // tolerance for trimming transparency pixels 0-255
-	sameDetect         bool   // same detection
-	powerOfTwo         bool   // the atlas pixels are fixed to a power of 2
-	preMultipliedAlpha bool   // premultiplied alpha
+	name       string // atlas name
+	sort       bool   // sorting by file name
+	trim       bool   // trim transparent pixels from the image
+	tolerance  uint8  // tolerance for trimming transparency pixels 0-255
+	sameDetect bool   // same detection
+	powerOfTwo bool   // the atlas pixels are fixed to a power of 2
 	//----validate----
 	err error
 }
 
 func NewOptions() *Options {
 	return &Options{
-		maxW:               512,
-		maxH:               512,
-		name:               "atlas",
-		autoSize:           false,
-		padding:            0,
-		algorithm:          AlgoBasic,
-		heuristic:          BestShortSideFit,
-		sort:               true,
-		allowRotate:        false,
-		trim:               false,
-		tolerance:          0,
-		sameDetect:         false,
-		preMultipliedAlpha: false,
-		powerOfTwo:         false,
+		maxW:        512,
+		maxH:        512,
+		name:        "atlas",
+		autoSize:    false,
+		padding:     0,
+		algorithm:   AlgoBasic,
+		heuristic:   BestShortSideFit,
+		sort:        true,
+		allowRotate: false,
+		trim:        false,
+		tolerance:   0,
+		sameDetect:  false,
+		powerOfTwo:  false,
 	}
 }
 
@@ -179,15 +177,6 @@ func (b *Options) PowerOfTwo(enable bool) *Options {
 		return b
 	}
 	b.powerOfTwo = enable
-	return b
-}
-
-// PmAlpha sets the premultiplied alpha.
-func (b *Options) PmAlpha(enable bool) *Options {
-	if b.err != nil {
-		return b
-	}
-	b.preMultipliedAlpha = enable
 	return b
 }
 

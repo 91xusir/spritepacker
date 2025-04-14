@@ -13,6 +13,10 @@ type Size struct {
 	H int `json:"h"`
 }
 
+func (s Size) Clone() Size {
+	return Size{W: s.W, H: s.H}
+}
+
 func NewSize(w, h int) Size {
 	if w <= 0 || h <= 0 {
 		_, _ = fmt.Fprintf(os.Stderr, "size dimensions must be positive, got: w=%d, h=%d\n", w, h)

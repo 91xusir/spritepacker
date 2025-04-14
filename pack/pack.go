@@ -6,6 +6,7 @@ import (
 	"image/draw"
 	"math"
 	"os"
+	"path/filepath"
 	"sort"
 	"time"
 )
@@ -17,8 +18,10 @@ const (
 )
 
 type Packer struct {
-	algo   algo     // interface algo
-	option *Options // Options for packing
+	algo           algo     // interface algo
+	option         *Options // Options for packing
+	sameDetectInfo SameDetectInfo
+	inputDir       string // input path
 }
 
 func NewPacker(option *Options) *Packer {
@@ -81,14 +84,26 @@ func (p *Packer) PackRect(reqRects []Rect) []Bin {
 //   - *SpriteAtlas: the sprite atlas info
 //   - []image.Image: the atlas images
 //   - error
-func (p *Packer) PackSprites(spritePaths []string) (*SpriteAtlas, []image.Image, error) {
-	// create meta
-	meta := Meta{
-		Repo:      Repo,
-		Format:    Format,
-		Version:   Version,
-		Timestamp: time.Now().Format(time.DateTime),
+//
+// Example:
+//
+//	spriteAtlas, atlasImages, err := packer.PackSprites("./input")
+func (p *Packer) PackSprites(input string) (*SpriteAtlas, []image.Image, error) {
+	spritePaths, err := ListFilePaths(input)
+	if err != nil {
+		return nil, nil, err
 	}
+
+	if p.option.sameDetect {
+		spritePaths, p.sameDetectInfo, _ = FindDuplicateFiles(spritePaths)
+	}
+
+	// save input dir
+	p.inputDir = input
+
+	// create meta
+	meta := getMateData()
+
 	// create sprite atlas
 	spriteAtlas := &SpriteAtlas{
 		Meta:    meta,
@@ -96,30 +111,71 @@ func (p *Packer) PackSprites(spritePaths []string) (*SpriteAtlas, []image.Image,
 	}
 	// get image rects and src rects and trimmed rects
 	reqRects, srcRects, trimmedRectMap := p.getImageRects(spritePaths)
+
+	// pack rects
 	bins := p.PackRect(reqRects)
+
+	// generate atlases info
+	//SpriteAtlas->
+	//			Meta
+	//			[]Atlases->
+	//					Name
+	//					Size
+	//					[]Sprites->
+	//							FileName
+	//							Frame
+	//							SrcRect
+	//							TrimmedRect
+	//							Rotated
+	//							Trimmed
 	for i, bin := range bins {
+
 		atlasSize := Size{W: bin.W, H: bin.H}
+
 		// if power of two
 		if p.option.powerOfTwo {
 			atlasSize = atlasSize.PowerOfTwo()
 		}
+
 		// create atlas
 		atlas := Atlas{
 			Name:    fmt.Sprintf("%s_%d", p.option.name, i),
 			Size:    atlasSize,
-			Sprites: make([]Sprite, len(bin.PackedRects)),
+			Sprites: make([]Sprite, 0, len(bin.PackedRects)),
 		}
-		for j, rect := range bin.PackedRects {
-			//fmt.Printf("%+v, srcPath: %s\n", rect.Id, spritePaths[rect.Id])
-			atlas.Sprites[j] = Sprite{
-				Filepath:    spritePaths[rect.Id], // always use filepath, not filename
+
+		//fmt.Printf("len %d \n", len(bin.PackedRects))
+		//for _, rect := range bin.PackedRects {
+		//	fmt.Printf("rect %v \n", rect)
+		//}
+
+		for _, rect := range bin.PackedRects {
+			// create sprite
+			baseName := filepath.Base(spritePaths[rect.Id])
+			sprite := Sprite{
+				FileName:    baseName,
 				Frame:       rect,
 				SrcRect:     srcRects[rect.Id],
 				TrimmedRect: trimmedRectMap[rect.Id],
 				Rotated:     rect.IsRotated,
 				Trimmed:     p.option.trim,
 			}
+			atlas.Sprites = append(atlas.Sprites, sprite)
+
+			// if same detect
+			// try to find the same file in the same directory
+			if p.option.sameDetect {
+				if dupPaths, ok := p.sameDetectInfo.BaseToDupesName[baseName]; ok {
+					//fmt.Printf("Found duplicate files: %v\n", dupPaths)
+					for _, dupPath := range dupPaths {
+						s := sprite.Clone()
+						s.FileName = dupPath
+						atlas.Sprites = append(atlas.Sprites, s)
+					}
+				}
+			}
 		}
+
 		spriteAtlas.Atlases = append(spriteAtlas.Atlases, atlas)
 	}
 	images, err := p.createAtlasImages(spriteAtlas)
@@ -207,21 +263,25 @@ func (p *Packer) packInBins(reqRects []Rect) []Bin {
 	return bins
 }
 
-func (p *Packer) getImageRects(fileNames []string) ([]Rect, []Size, map[int]Rect) {
-	reqRects := make([]Rect, len(fileNames))
-	srcRects := make([]Size, len(fileNames))
+func (p *Packer) getImageRects(filePaths []string) ([]Rect, []Size, map[int]Rect) {
+	reqRects := make([]Rect, 0)
+	srcRects := make([]Size, len(filePaths))
 	trimmedRectMap := make(map[int]Rect)
-	for i, fileName := range fileNames {
+	for i, fileName := range filePaths {
 		file, err := os.Open(fileName)
 		if err != nil {
-			fmt.Println(err)
 			continue // Skip unreadable files
 		}
+		//if i == 1 || i == 2 {
+		//	// continue may cause an empty rect to be passed in, resulting in an extra rect with ID default of 0
+		//	// so use reqRects.append replace reqRects[i]
+		//	// fix on 2025/4.14
+		//	continue
+		//}
 		if p.option.trim {
 			src, _, err := image.Decode(file)
 			file.Close()
 			if err != nil {
-				fmt.Println(err)
 				continue // Skip non-image files
 			}
 			srcSize := Size{
@@ -236,7 +296,7 @@ func (p *Packer) getImageRects(fileNames []string) ([]Rect, []Size, map[int]Rect
 				trimRect.Dy(),
 			)
 			srcRects[i] = srcSize
-			reqRects[i] = NewRectBySizeAndId(trimRect.Dx(), trimRect.Dy(), i)
+			reqRects = append(reqRects, NewRectBySizeAndId(trimRect.Dx(), trimRect.Dy(), i))
 			trimmedRectMap[i] = trimmedRect
 		} else {
 			cfg, _, err := image.DecodeConfig(file)
@@ -249,7 +309,7 @@ func (p *Packer) getImageRects(fileNames []string) ([]Rect, []Size, map[int]Rect
 				H: cfg.Height,
 			}
 			srcRects[i] = srcSize
-			reqRects[i] = NewRectBySizeAndId(cfg.Width, cfg.Height, i)
+			reqRects = append(reqRects, NewRectBySizeAndId(cfg.Width, cfg.Height, i))
 		}
 	}
 
@@ -269,8 +329,18 @@ func (p *Packer) createAtlasImages(atlas *SpriteAtlas) ([]image.Image, error) {
 				X: trimmedRect.X,
 				Y: trimmedRect.Y,
 			}
-			//read sprite image
-			spriteImg, err := LoadImg(sprite.Filepath)
+			// if same detect
+			if p.option.sameDetect {
+				//xxx.png -> aaa.png
+				//bbb.png -> aaa.png
+				//aaa.png -> nil
+				if _, ok := p.sameDetectInfo.DupeToBaseName[sprite.FileName]; ok {
+					//fmt.Printf("same detect %s \n", sprite.FileName)
+					continue
+				}
+			}
+
+			spriteImg, err := LoadImg(filepath.Join(p.inputDir, sprite.FileName))
 			if err != nil {
 				return nil, err
 			}
@@ -289,4 +359,13 @@ func (p *Packer) createAtlasImages(atlas *SpriteAtlas) ([]image.Image, error) {
 		}
 	}
 	return atlasImages, nil
+}
+
+func getMateData() Meta {
+	return Meta{
+		Repo:      Repo,
+		Format:    Format,
+		Version:   Version,
+		Timestamp: time.Now().Format(time.DateTime),
+	}
 }

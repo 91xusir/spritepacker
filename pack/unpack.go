@@ -85,7 +85,7 @@ func UnpackSprites(jsonPath string, fn ...UnpackOpts) error {
 		}
 		for j := range atlasInfo.Atlases[i].Sprites {
 			sprite := atlasInfo.Atlases[i].Sprites[j]
-			outputPath := filepath.Join(opts.outputPath, filepath.Base(sprite.Filepath))
+			outputPath := filepath.Join(opts.outputPath, filepath.Base(sprite.FileName))
 			subImg := image.NewNRGBA(image.Rect(0, 0, sprite.Frame.W, sprite.Frame.H))
 			srcLeftTopPoint := image.Point{
 				X: sprite.Frame.X,
