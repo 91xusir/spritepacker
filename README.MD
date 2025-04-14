@@ -73,7 +73,7 @@ import (
 
 func Pack() {
 	
-	options, _ := (pack.NewOptions().MaxSize(1024, 1024)).Trim(true).Validate()
+	options, _ := pack.NewOptions().MaxSize(1024, 1024).Trim(true).Validate()
 
 	atlasInfo, atlasImages, _  := pack.NewPacker(options).PackSprites("./input")
 	
