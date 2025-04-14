@@ -14,10 +14,10 @@ func TestSpritePacker(t *testing.T) {
 	options := pack.NewOptions().MaxSize(4096, 4096).
 		Trim(true).
 		Sort(true).
-		Padding(0).
+		Padding(-1).
 		AllowRotate(true).
-		Algorithm(pack.AlgoMaxRects).
-		Heuristic(pack.BestAreaFit).
+		Algorithm(pack.AlgoSkyline).
+		Heuristic(pack.ContactPointFit).
 		AutoSize(true).
 		PowerOfTwo(true)
 
@@ -75,12 +75,9 @@ func TestImageDiff(t *testing.T) {
 	outputFolder := "output"
 	diffs := compareFolders(inputFolder, outputFolder)
 	if len(diffs) > 0 {
-		fmt.Println("The following images are different:")
-		for _, name := range diffs {
-			fmt.Println(" -", name)
-		}
+		t.Errorf("Found %d different images:\n", len(diffs))
 	} else {
-		fmt.Println("All images are identical ✅")
+		t.Logf("All images are the same.\n")
 	}
 }
 

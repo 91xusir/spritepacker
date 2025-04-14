@@ -80,8 +80,7 @@ func (b *Options) Padding(padding int) *Options {
 		return b
 	}
 	if padding < 0 {
-		b.err = errors.New("padding must be >= 0")
-		return b
+		b.padding = 0
 	}
 	b.padding = padding
 	return b

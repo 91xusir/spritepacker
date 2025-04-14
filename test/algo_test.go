@@ -15,10 +15,10 @@ import (
 )
 
 type AlgoResult struct {
-	Rects    []pack.PackedRect
+	Rects    []pack.Rect
 	Title    string
 	FillRate float64
-	TimeUsed int64
+	TimeUsed time.Duration
 	totalS   int
 	usedS    int
 	w        int
@@ -29,7 +29,7 @@ type AlgoResult struct {
 func TestFixedDataFixedSize(t *testing.T) {
 	reqRects := make([]pack.Rect, 100)
 	for i := 0; i < 100; i++ {
-		reqRects[i] = pack.Rect{W: 64, H: 64}
+		reqRects[i] = pack.NewRectBySize(64, 64)
 	}
 
 	options := pack.NewOptions().
@@ -82,18 +82,18 @@ func packedWithAllAlgorithms(t *testing.T, reqRects []pack.Rect, options *pack.O
 	for _, a := range algorithms {
 		start := time.Now()
 		r := slices.Clone(reqRects)
-		packed := pack.NewPacker(options.Algorithm(a.algo)).PackRect(r)
-		elapsed := time.Since(start).Nanoseconds()
-		t.Logf("%s FillRate: %.2f%%, Time: %d ns\n", a.name, packed.Bin.FillRate*100, elapsed)
+		bins := pack.NewPacker(options.Algorithm(a.algo)).PackRect(r)
+		elapsed := time.Since(start)
+		t.Logf("%s FillRate: %.2f%%, Time: %s ns\n", a.name, bins[0].FillRate()*100, formatElapsed(elapsed))
 		results = append(results, AlgoResult{
-			Rects:    packed.Bin.PackedRects,
+			Rects:    bins[0].PackedRects,
 			Title:    a.name,
-			FillRate: packed.Bin.FillRate,
+			FillRate: bins[0].FillRate(),
 			TimeUsed: elapsed,
-			totalS:   packed.Bin.Area(),
-			usedS:    packed.Bin.UsedArea,
-			w:        packed.Bin.W,
-			h:        packed.Bin.H,
+			totalS:   bins[0].Area(),
+			usedS:    bins[0].UsedArea,
+			w:        bins[0].W,
+			h:        bins[0].H,
 		})
 	}
 	return results
@@ -105,11 +105,11 @@ func generateRandomRects(count, maxW, maxH int) []pack.Rect {
 		if rand.Intn(2) == 0 {
 			w := rand.Intn(maxW/2) + maxW/2
 			h := rand.Intn(maxH/2) + maxH/2
-			rects = append(rects, pack.NewRectById(w, h, i))
+			rects = append(rects, pack.NewRectBySizeAndId(w, h, i))
 		} else {
 			w := rand.Intn(maxW/3) + 1
 			h := rand.Intn(maxH/3) + 1
-			rects = append(rects, pack.NewRectById(w, h, i))
+			rects = append(rects, pack.NewRectBySizeAndId(w, h, i))
 		}
 	}
 	return rects
@@ -159,11 +159,11 @@ func generateComparisonHTML(results []AlgoResult, filename string) {
 		<p>UsedArea: %d</p>
 		<p>TotalArea: %d</p>
         <p>FillRate: %.2f%%</p>
-        <p>Time: %d ns</p>
+        <p>Time: %s </p>
 		<p>Count: %d</p>
       </div>
     </div>
-`, res.Title, canvasID, res.w, res.h, res.usedS, res.totalS, res.FillRate*100, res.TimeUsed, len(res.Rects))
+`, res.Title, canvasID, res.w, res.h, res.usedS, res.totalS, res.FillRate*100, formatElapsed(res.TimeUsed), len(res.Rects))
 	}
 
 	html += `</div><script>`
@@ -219,7 +219,7 @@ func generateComparisonHTML(results []AlgoResult, filename string) {
 	}
 }
 
-func formatRects(rects []pack.PackedRect) string {
+func formatRects(rects []pack.Rect) string {
 	parts := make([]string, len(rects))
 	for i, r := range rects {
 		parts[i] = fmt.Sprintf("{x:%d,y:%d,w:%d,l:%d}", r.X, r.Y, r.W, r.H)
@@ -227,7 +227,7 @@ func formatRects(rects []pack.PackedRect) string {
 	return "[" + strings.Join(parts, ",") + "]"
 }
 
-func formatRotateFlags(rects []pack.PackedRect) string {
+func formatRotateFlags(rects []pack.Rect) string {
 	flags := make([]string, len(rects))
 	for i, r := range rects {
 		if r.IsRotated {
@@ -259,7 +259,7 @@ func getTestData(path string) ([]pack.Rect, error) {
 		if err != nil {
 			return nil, fmt.Errorf("an error in parsing rectangle height: %w", err)
 		}
-		rect := pack.NewRectById(w, h, id)
+		rect := pack.NewRectBySizeAndId(w, h, id)
 		id++
 		reqPackedRect = append(reqPackedRect, rect)
 
@@ -268,4 +268,17 @@ func getTestData(path string) ([]pack.Rect, error) {
 		return nil, err
 	}
 	return reqPackedRect, nil
+}
+
+func formatElapsed(t time.Duration) string {
+	switch {
+	case t < time.Microsecond:
+		return fmt.Sprintf("%d ns", t.Nanoseconds())
+	case t < time.Millisecond:
+		return fmt.Sprintf("%.2f µs", float64(t.Microseconds()))
+	case t < time.Second:
+		return fmt.Sprintf("%.2f ms", float64(t.Milliseconds()))
+	default:
+		return fmt.Sprintf("%.2f s", t.Seconds())
+	}
 }

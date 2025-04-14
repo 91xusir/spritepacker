@@ -3,119 +3,143 @@ package pack
 import (
 	"fmt"
 	"image"
+	"os"
 )
+
+// Size represents a size with width and height.
+// The width and height must be positive.
+type Size struct {
+	W int `json:"w"`
+	H int `json:"h"`
+}
+
+func NewSize(w, h int) Size {
+	if w <= 0 || h <= 0 {
+		_, _ = fmt.Fprintf(os.Stderr, "size dimensions must be positive, got: w=%d, h=%d\n", w, h)
+		w, h = 1, 1
+	}
+	return Size{W: w, H: h}
+}
+func (s Size) Area() int {
+	return s.W * s.H
+}
+func (s Size) Rotated() Size {
+	return Size{W: s.H, H: s.W}
+}
+
+func (s Size) PowerOfTwo() Size {
+	s.W = NextPowerOfTwo(s.W)
+	s.H = NextPowerOfTwo(s.H)
+	return s
+}
+
+type Point struct {
+	X int `json:"x"`
+	Y int `json:"y"`
+}
+
+func NewPoint(x, y int) Point {
+	if x < 0 || y < 0 {
+		_, _ = fmt.Fprintf(os.Stderr, "point coordinates must be positive, got: x=%d, y=%d\n", x, y)
+		x, y = 0, 0
+	}
+	return Point{X: x, Y: y}
+}
 
 // Rect represents an immutable rectangle using value semantics.
 type Rect struct {
-	W  int
-	H  int
-	Id int
+	Point
+	Size
+	Id        int  `json:"-"`
+	IsRotated bool `json:"rotated,omitempty"`
 }
 
 // NewRect creates a new Rect value.
-func NewRect(w, h int) Rect {
-	return NewRectById(w, h, 0)
-}
-
-// NewRectById creates a configured Rect value.
-func NewRectById(w, h int, id int) Rect {
-	if w <= 0 || h <= 0 {
-		fmt.Printf("rect dimensions must be positive, got: id=%d w=%d, h=%d\n", id, w, h)
-		w, h = 1, 1
-	}
-	return Rect{W: w, H: h, Id: id}
-}
-
-// Area returns the area of the rectangle.
-//
-//go:inline
-func (r Rect) Area() int { return r.W * r.H }
-
-// Rotated returns a new rotated rectangle.
-func (r Rect) Rotated() Rect {
-	return Rect{W: r.H, H: r.W, Id: r.Id}
-}
-
-func (r Rect) String() string {
-	return fmt.Sprintf("Rect{ID: %-5v W: %-4d H: %-4d}",
-		r.Id, r.W, r.H)
-}
-
-// PackedRect represents a packed rectangle
-type PackedRect struct {
-	X int
-	Y int
-	Rect
-	IsRotated bool
-}
-
-// NewRectPacked creates a new PackedRect with the given ID, x, y, width, height, and rotation flag.
-// If isRotated is true, the rectangle is rotated 90 degrees.
-func NewRectPacked(x, y int, rect Rect) PackedRect {
-	return PackedRect{
-		Rect:      rect,
-		X:         x,
-		Y:         y,
+func NewRect(x, y, w, h, id int) Rect {
+	return Rect{
+		Point:     NewPoint(x, y),
+		Size:      NewSize(w, h),
+		Id:        id,
 		IsRotated: false,
 	}
 }
+func NewRectBySize(w, h int) Rect {
+	return NewRect(0, 0, w, h, 0)
+}
+func NewRectBySizeAndId(w, h, id int) Rect {
+	return NewRect(0, 0, w, h, id)
+}
+func NewRectByPosAndSize(x, y, w, h int) Rect {
+	return NewRect(x, y, w, h, 0)
+}
+func (r Rect) isContainedIn(rect Rect) bool {
+	return r.X >= rect.X && r.Y >= rect.Y && r.X+r.W <= rect.X+rect.W && r.Y+r.H <= rect.Y+rect.H
+}
 
-func (r PackedRect) Rotated() PackedRect {
-	return PackedRect{
-		Rect:      r.Rect.Rotated(),
-		X:         r.X,
-		Y:         r.Y,
+func (r Rect) CloneWithPos(x, y int) Rect {
+	return Rect{
+		Point:     NewPoint(x, y),
+		Size:      r.Size,
+		Id:        r.Id,
+		IsRotated: r.IsRotated,
+	}
+}
+func (r Rect) CloneWithSize(w, h int) Rect {
+	return Rect{
+		Point:     r.Point,
+		Size:      NewSize(w, h),
+		Id:        r.Id,
+		IsRotated: r.IsRotated,
+	}
+}
+
+func (r Rect) Clone() Rect {
+	return Rect{
+		Point:     r.Point,
+		Size:      r.Size,
+		Id:        r.Id,
+		IsRotated: r.IsRotated,
+	}
+}
+
+func (r Rect) Rotated() Rect {
+	return Rect{
+		Point:     r.Point,
+		Size:      r.Size.Rotated(),
+		Id:        r.Id,
 		IsRotated: !r.IsRotated,
 	}
 }
 
-func (r PackedRect) ToImageRect() image.Rectangle {
+func (r Rect) ToImageRect() image.Rectangle {
 	return image.Rect(r.X, r.Y, r.X+r.W, r.Y+r.H)
 }
-func (r PackedRect) ToRectangle() Rectangle {
-	return Rectangle{
-		X: r.X,
-		Y: r.Y,
-		W: r.W,
-		H: r.H,
-	}
-}
 
-func (r PackedRect) String() string {
-	return fmt.Sprintf("[Id: %v, X: %d, Y: %d, W: %d, H: %d, IsRotated: %v]", r.Id, r.X, r.Y, r.W, r.H, r.IsRotated)
+func (r Rect) String() string {
+	return fmt.Sprintf("[Id: %d, X: %d, Y: %d, W: %d, H: %d, IsRotated: %v]", r.Id, r.X, r.Y, r.W, r.H, r.IsRotated)
 }
 
 // Bin represents a Bin with a width, height,and a list of rectangles have been packed.
 type Bin struct {
-	Rect
-	PackedRects []PackedRect
+	Size
+	PackedRects []Rect
 	UsedArea    int
-	FillRate    float64
 }
 
 // NewBin creates a new bin with the given width, height, and list of rectangles to be packed.
-func NewBin(w, h int, req []PackedRect, usedArea int, fillRate float64) Bin {
+func NewBin(w, h int, req []Rect) Bin {
 	bin := Bin{
-		Rect:        NewRect(w, h),
+		Size:        NewSize(w, h),
 		PackedRects: req,
-		FillRate:    fillRate,
-		UsedArea:    usedArea,
 	}
 	return bin
 }
+func (b Bin) FillRate() float64 {
+	return float64(b.UsedArea) / float64(b.Area())
+}
 
 func (b Bin) String() string {
-	return fmt.Sprintf("{Id:%v, W:%d, H:%d, FillRate:%.2f%%, PackedRects:%v}", b.Id, b.W, b.H, b.FillRate*100, b.PackedRects)
-}
-
-// PackedResult represents the result of packing rectangles into a bin.
-type PackedResult struct {
-	Bin           Bin
-	UnpackedRects []Rect
-}
-
-func (r PackedResult) String() string {
-	return fmt.Sprintf("PackedResult{Bin:%s, UnpackedRects:%v}", r.Bin, r.UnpackedRects)
+	return fmt.Sprintf("Bin{W:%d, H:%d,UsedArea:%d, FillRate:%.2f%%}", b.W, b.H, b.UsedArea, b.FillRate()*100)
 }
 
 func addPadding(rect *Rect, padding int) {
