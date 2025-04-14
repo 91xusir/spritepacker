@@ -16,7 +16,7 @@ type unpackedOpts struct {
 }
 type UnpackOpts func(*unpackedOpts)
 
-func WithAtlasImgPath(atlasImgPath string) UnpackOpts {
+func WithImg(atlasImgPath string) UnpackOpts {
 	if atlasImgPath == "" {
 		return func(opts *unpackedOpts) {
 			return
@@ -26,7 +26,7 @@ func WithAtlasImgPath(atlasImgPath string) UnpackOpts {
 		opts.atlasImgPath = atlasImgPath
 	}
 }
-func WithOutputPath(outputPath string) UnpackOpts {
+func WithOutput(outputPath string) UnpackOpts {
 	if outputPath == "" {
 		return func(opts *unpackedOpts) {
 			return
@@ -108,7 +108,7 @@ func UnpackSprites(jsonPath string, fn ...UnpackOpts) error {
 				draw.Draw(img, destRect, subImg, image.Point{}, draw.Src)
 				subImg = img
 			}
-			err := SaveImgExt(outputPath, subImg)
+			err := SaveImgByExt(outputPath, subImg)
 			if err != nil {
 				return fmt.Errorf("failed to save image %s: %v", outputPath, err)
 			}

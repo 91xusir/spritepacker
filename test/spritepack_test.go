@@ -30,7 +30,7 @@ func TestSpritePacker(t *testing.T) {
 	spritePacker := pack.NewPacker(options)
 
 	// Step 4: Pack all sprite images and generate atlas metadata and images
-	spriteAtlasInfo, atlasImages, _ := spritePacker.PackSprites("input")
+	spriteAtlasInfo, atlasImages, _ := spritePacker.PackSprites("./input")
 
 	t.Logf("spriteAtlas: %v", spriteAtlasInfo)
 
@@ -42,7 +42,7 @@ func TestSpritePacker(t *testing.T) {
 		// based on the format passed (e.g., pack.PNG, pack.JPEG, etc.).
 		// WithCLV is function to set the compression level of the image.
 		outputPath := filepath.Join("output", spriteAtlasInfo.Atlases[i].Name)
-		_ = pack.SaveImg(outputPath, atlasImages[i], pack.PNG, pack.WithCLV(pack.DefaultCompression))
+		_ = pack.SaveImgAutoExt(outputPath, atlasImages[i], pack.PNG, pack.WithCLV(pack.DefaultCompression))
 	}
 
 	// Step 6: Save the atlas metadata as a JSON file
@@ -58,7 +58,7 @@ func TestSpritePacker(t *testing.T) {
 func TestSpriteUnpack(t *testing.T) {
 	// default output and atlas images path is the same as the atlas.json path
 	// if you want to change this, you can use the following code:
-	// pack.UnpackSprites("output/atlas.json", pack.WithAtlasImgPath("output"), pack.WithOutputPath("output"))
+	// pack.UnpackSprites("output/atlas.json", pack.WithImg("output"), pack.WithOutput("output"))
 	err := pack.UnpackSprites("output/atlas.json")
 	if err != nil {
 		t.Errorf("Failed to unpack sprites: %v", err)

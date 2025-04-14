@@ -58,6 +58,14 @@ func NextPowerOfTwo(n int) int {
 
 //---------------file--------------------
 
+func SafeCreate(outputPath string) (*os.File, error) {
+	dir := filepath.Dir(outputPath)
+	if err := os.MkdirAll(dir, os.ModePerm); err != nil {
+		return nil, err
+	}
+	return os.Create(outputPath)
+}
+
 // ListFilePaths
 //
 // Parameters:
@@ -285,9 +293,9 @@ func WithCLV(clv clv) SetClv {
 	}
 }
 
-func SaveImgExt(fileName string, img image.Image, compressionLevel ...SetClv) error {
-	fileName = strings.ToLower(fileName)
-	ext := filepath.Ext(fileName)
+func SaveImgByExt(outputPath string, img image.Image, compressionLevel ...SetClv) error {
+	outputPath = strings.ToLower(outputPath)
+	ext := filepath.Ext(outputPath)
 	if ext == "" {
 		ext = ".png"
 	}
@@ -304,11 +312,15 @@ func SaveImgExt(fileName string, img image.Image, compressionLevel ...SetClv) er
 	default:
 		return errors.New("unsupported image format")
 	}
-	pathName := strings.TrimSuffix(fileName, ext)
-	return SaveImg(pathName, img, format, compressionLevel...)
+	file, err := SafeCreate(outputPath)
+	if err != nil {
+		return err
+	}
+	defer file.Close()
+	return EncImg(file, img, format, compressionLevel...)
 }
 
-func SaveImg(pathName string, img image.Image, format ImageFormat, compressionLevel ...SetClv) error {
+func SaveImgAutoExt(pathNoneExt string, img image.Image, format ImageFormat, compressionLevel ...SetClv) error {
 	opts := &encodeImgOpt{
 		jpegQuality:         jpeg.DefaultQuality,
 		pngCompressionLevel: png.DefaultCompression,
@@ -331,8 +343,8 @@ func SaveImg(pathName string, img image.Image, format ImageFormat, compressionLe
 	default:
 		return errors.New("unsupported image format")
 	}
-	pathName = strings.TrimSuffix(pathName, filepath.Ext(pathName)) + ext
-	file, err := os.Create(pathName)
+	fullPath := pathNoneExt + ext
+	file, err := SafeCreate(fullPath)
 	if err != nil {
 		return err
 	}

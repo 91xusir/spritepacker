@@ -11,51 +11,47 @@
 ```bash
 go install github.com/91xusir/spritepacker@latest
 ```
+
 ```bash
 spritepacker -help
 ```
+
 ### 🛠️ Packing Options
 
-| Parameter    | Description                                                                                                                           |
-|--------------|---------------------------------------------------------------------------------------------------------------------------------------|
-| `-input`     | Input directory containing sprite images (required)                                                                                   |
-| `-output`    | Output directory (default: `output`)                                                                                                  |
-| `-maxw`      | Maximum atlas width (default: `2048`)                                                                                                 |
-| `-maxh`      | Maximum atlas height (default: `2048`)                                                                                                |
-| `-padding`   | Padding between sprites (default: `2`)                                                                                                |
-| `-rotate`    | Enable sprite rotation for better space utilization                                                                                   |
-| `-pot`       | Force power-of-two dimensions for atlas                                                                                               |
-| `-name`      | Base name for output atlas (default: `atlas`)                                                                                         |
-| `-sort`      | Sort images before packing (enabled by default)                                                                                       |
-| `-trim`      | Trim transparent edges (enabled by default)                                                                                           |
-| `-tolerance` | Alpha tolerance for trimming (0-255, default: `1`)                                                                                    |
-| `-same`      | Enable duplicate image detection (enabled by default)                                                                                 |
-| `-algo`      | Packing algorithm: 0 = Basic, 1 = Skyline, 2 = MaxRects                                                                               |
-| `-heuristic` | MaxRects heuristic (only for `-algo 2`): 0 = BestShortSideFit, 1 = BestLongSideFit, 2 = BestAreaFit, 3 = BottomLeft, 4 = ContactPoint |
+| Parameter | Type   | Description                                                                                                         |
+|-----------|--------|---------------------------------------------------------------------------------------------------------------------|
+| -i        | string | Input directory containing sprite images (required for packing)                                                     |
+| -o        | string | Output directory (default "output")                                                                                 |
+| -maxw     | int    | Maximum atlas width (default 2048)                                                                                  |
+| -maxh     | int    | Maximum atlas height (default 2048)                                                                                 |
+| -pad      | int    | Padding between sprites (default 0)                                                                                 |
+| -auto     | bool   | Automatically adjust atlas size (default true)                                                                      |
+| -rot      | bool   | Allow sprite rotation to save space (default false)                                                                 |
+| -pot      | bool   | Force power-of-two atlas dimensions (default false)                                                                 |
+| -name     | string | Base name for output files (default "atlas")                                                                        |
+| -sort     | bool   | Sorts sprites before packing (default true)                                                                         |
+| -trim     | bool   | Trims transparent edges (default false)                                                                             |
+| -tol      | int    | Transparency tolerance for trimming (0-255, default 0)                                                              |
+| -same     | bool   | Enable identical image detection (default false)                                                                    |
+| -algo     | int    | Packing algorithm (0=Basic, 1=Skyline, 2=MaxRects) (default 1)                                                      |
+| -heur     | int    | MaxRects heuristic (0=BestShortSideFit, 1=BestLongSideFit, 2=BestAreaFit, 3=BottomLeft, 4=ContactPoint) (default 0) |
 
 ### 🛠️ Unpacking Options
 
 | Parameter | Description                                        |
 |-----------|----------------------------------------------------|
-| `-unpack` | Path to atlas JSON file (required)                 |
+| `-u`      | Path to atlas JSON file (required)                 |
 | `-img`    | Path to atlas image (optional, inferred from JSON) |
-| `-output` | Output directory (optional, inferred from JSON)    |
+| `-o`      | Output directory (optional, inferred from JSON)    |
 
 ### 📦 Examples
 
 ```bash
-# Pack all images in ./sprites with default settings
-spritepacker -input ./sprites -output ./atlases
-
-# Custom atlas size, padding, and enable rotation
-spritepacker -input ./sprites -maxw 1024 -maxh 1024 -trim -
-
-# Unpack atlas using atlas.json
-spritepacker -unpack ./atlases/atlas.json -output ./unpacked
+	spritepacker -i <dir> [options]       # Pack mode
+	spritepacker -u <json> [options]     # Unpack mode
 ```
 
 ------
-
 
 ## 🧪 API
 
@@ -76,43 +72,21 @@ import (
 )
 
 func Pack() {
-	// Step 1: Create packing options and set the maximum atlas size to 4096x4096
-	options, _ := (pack.NewOptions().
-		MaxSize(4096, 4096)).
-	    Trim(true).
-		Sort(true).
-		Padding(-1).
-		//AllowRotate(true).
-		//Algorithm(pack.AlgoSkyline).
-		//Heuristic(pack.ContactPointFit).
-		//AutoSize(true).
-		//PowerOfTwo(true).
-		Validate()	// Optional: Validate the options. If invalid, an error will be returned.
+	
+	options, _ := (pack.NewOptions().MaxSize(1024, 1024)).Trim(true).Validate()
 
-	// Step 2: Create the sprite packer using the configured options
-	spritePacker := pack.NewPacker(options)
-
-	// Step 3: Collect all sprite image paths
-	spriteImgPaths, _ := pack.GetFilesInDirectory("input")
-
-	// Step 4: Pack all sprite images and generate atlas metadata and images
-	spriteAtlasInfo, atlasImages, _ := spritePacker.PackSprites(spriteImgPaths)
-
-	// Step 5: Save each atlas image to the "output" directory
+	atlasInfo, atlasImages, _  := pack.NewPacker(options).PackSprites("./input")
+	
 	for i := range atlasImages {
-		outputPath := filepath.Join("output", spriteAtlasInfo.Atlases[i].Name)
-		_ = pack.SaveImg(outputPath, atlasImages[i], pack.PNG, pack.WithCLV(pack.DefaultCompression))
+		outputPath := filepath.Join("output", atlasInfo.Atlases[i].Name)
+		_ = pack.SaveImgAutoExt(outputPath, atlasImages[i], pack.PNG, pack.WithCLV(pack.DefaultCompression))
 	}
-	// Step 6: Save the atlas metadata as a JSON file
-	jsonBytes, _ := json.MarshalIndent(spriteAtlasInfo, "", "  ")
+	
+	jsonBytes, _ := json.MarshalIndent(atlasInfo, "", "  ")
 	_ = os.WriteFile("output/atlas.json", jsonBytes, os.ModePerm)
-
 }
 
 func Unpack() {
-	// default output and atlas images path is the same as the atlas.json path
-	// if you want to change this, you can use the following code:
-	// pack.UnpackSprites("output/atlas.json", pack.WithAtlasImgPath("output"), pack.WithOutputPath("output"))
 	err := pack.UnpackSprites("output/atlas.json")
 	if err != nil {
 		return
