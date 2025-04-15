@@ -59,6 +59,7 @@ import (
 	"github.com/91xusir/spritepacker/pack"
 	"os"
 	"path/filepath"
+	"runtime/debug"
 )
 
 var (
@@ -123,6 +124,12 @@ func flagArgs(opts *pack.Options) error {
 }
 
 func main() {
+
+	info, _ := debug.ReadBuildInfo()
+	if info != nil {
+		pack.Version = info.Main.Version
+	}
+
 	opts := pack.NewOptions()
 	check(flagArgs(opts))
 	if unpackJsonPath != "" {
