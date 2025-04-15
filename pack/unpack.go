@@ -18,7 +18,7 @@ type unpackedOpts struct {
 }
 type UnpackOpts func(*unpackedOpts)
 
-func WithImg(atlasImgPath string) UnpackOpts {
+func WithImgInput(atlasImgPath string) UnpackOpts {
 	if atlasImgPath == "" {
 		return func(opts *unpackedOpts) {
 			return

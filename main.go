@@ -1,57 +1,5 @@
 /*
 Package main provides a command-line tool for sprite atlas packing and unpacking.
-
-This tool supports:
-- Creating optimized sprite atlases from individual images
-- Unpacking existing sprite atlases back to individual images
-- Multiple packing algorithms and heuristics
-- Various sprite processing options
-
-Usage:
-
-	spritepacker -i <dir> [options]       # Pack mode
-	spritepacker -u <json> [options]      # Unpack mode
-
-Packing Options:
-
-	-v            Show version information
-	-I    string  Input directory containing sprite images (required for packing)
-	-o    string  Output directory (default "output")
-	-f1   string  Metadata format for atlas (default "json")
-	-f2   string  Image format for packing (default "png")
-	-name string  Base name for output files (default "atlas")
-	-maxw int     Maximum atlas width (default 2048)
-	-maxh int     Maximum atlas height (default 2048)
-	-pad  int     Padding between sprites (default 0)
-	-auto         Automatically adjust atlas size (default true)
-	-rot          Allow sprite rotation to save space (default false)
-	-pot          Force power-of-two atlas dimensions (default false)
-	-sort         Sorts sprites before packing (default true)
-	-trim         Trims transparent edges (default false)
-	-tol  int     Transparency tolerance for trimming (0-255, default 0)
-	-same         Enable identical image detection (default false)
-	-algo int     Packing algorithm (0=Basic, 1=Skyline, 2=MaxRects) (default 1)
-	-heur int     MaxRects heuristic (0-4, see docs) (default 0)
-
-Unpacking Options:
-
-	-u   string     JSON file to unpack (required for unpacking)
-	-img string     Atlas image path (optional, inferred from JSON)
-	-o   string     Output directory for unpacked sprites (optional, inferred from JSON)
-
-Examples:
-
-	# Pack sprites with default settings
-	spritepacker -i ./sprites -o ./atlases
-
-	# Unpack atlas
-	spritepacker -u ./atlases/atlas.json -o ./unpacked
-
-The package includes:
-- Multiple packing algorithms (Basic, Skyline, MaxRects)
-- Support for common image formats (PNG, JPEG, BMP, TIFF)
-- Sprite trimming and optimization features
-- JSON metadata generation
 */
 package main
 
@@ -152,7 +100,7 @@ func main() {
 	check(flagArgs(opts))
 
 	if unpackJsonPath != "" {
-		check(pack.UnpackSprites(unpackJsonPath, pack.WithImg(atlasImgPath), pack.WithOutput(outputPath)))
+		check(pack.UnpackSprites(unpackJsonPath, pack.WithImgInput(atlasImgPath), pack.WithOutput(outputPath)))
 		os.Exit(0)
 	}
 
