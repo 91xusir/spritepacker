@@ -17,6 +17,8 @@ Packing Options:
 	-v            Show version information
 	-I    string  Input directory containing sprite images (required for packing)
 	-o    string  Output directory (default "output")
+	-f1   string  Metadata format for atlas (default "json")
+	-f2   string  Image format for packing (default "png")
 	-name string  Base name for output files (default "atlas")
 	-maxw int     Maximum atlas width (default 2048)
 	-maxh int     Maximum atlas height (default 2048)

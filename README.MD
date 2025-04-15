@@ -22,6 +22,8 @@ spritepacker -help
 |-----------|--------|---------------------------------------------------------------------------------------------------------------------|
 | -i        | string | Input directory containing sprite images (required for packing)                                                     |
 | -o        | string | Output directory (default "output")                                                                                 |
+| -f1       | string | Metadata format for atlas (default "json")                                                                          |
+| -f2       | string | Image format for packing (default "png")                                                                            |
 | -maxw     | int    | Maximum atlas width (default 2048)                                                                                  |
 | -maxh     | int    | Maximum atlas height (default 2048)                                                                                 |
 | -pad      | int    | Padding between sprites (default 0)                                                                                 |
@@ -72,16 +74,16 @@ import (
 )
 
 func Pack() {
-	
+
 	options, _ := pack.NewOptions().MaxSize(1024, 1024).Trim(true).Validate()
 
-	atlasInfo, atlasImages, _  := pack.NewPacker(options).PackSprites("./input")
-	
+	atlasInfo, atlasImages, _ := pack.NewPacker(options).PackSprites("./input")
+
 	for i := range atlasImages {
 		outputPath := filepath.Join("output", atlasInfo.Atlases[i].Name)
 		_ = pack.SaveImgAutoExt(outputPath, atlasImages[i], pack.PNG, pack.WithCLV(pack.DefaultCompression))
 	}
-	
+
 	jsonBytes, _ := json.MarshalIndent(atlasInfo, "", "  ")
 	_ = os.WriteFile("output/atlas.json", jsonBytes, os.ModePerm)
 }
