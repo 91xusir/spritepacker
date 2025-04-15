@@ -34,7 +34,6 @@ func flagArgs(opts *pack.Options) error {
 	padding := flag.Int("pad", 0, "Padding between sprites in pixels (default 0)")
 	allowRotate := flag.Bool("rot", false, "Allow sprite rotation to save space (default false)")
 	powerOfTwo := flag.Bool("pot", false, "Force atlas size to power of two (default false)")
-	name = *flag.String("name", "atlas", "Atlas name (default 'atlas')")
 	// ---- sprite processing options ----
 	sort := flag.Bool("sort", true, "Sort sprites by Area before packing (default true)")
 	trim := flag.Bool("trim", false, "Trim transparent edges from sprites (default false)")
@@ -44,6 +43,7 @@ func flagArgs(opts *pack.Options) error {
 	algorithm := flag.Int("algo", int(pack.AlgoSkyline), "Packing algorithm: 0=Basic, 1=Skyline, 2=MaxRects (Default: Skyline)")
 	heuristic := flag.Int("heur", int(pack.BestShortSideFit), "Heuristic for MaxRects (if used) 0=BestShortSideFit, 1=BestLongSideFit, 2=BestAreaFit, 3=BottomLeftRule, 4=ContactPointRule (Default: BestShortSideFit)")
 	// ---- general settings ----
+	flag.StringVar(&name, "name", "atlas", "Atlas name (default 'atlas')")
 	flag.StringVar(&inputPath, "i", "", "Input directory containing sprite images")
 	flag.StringVar(&outputPath, "o", "", "Output directory to save atlases or unpacked sprites")
 	flag.StringVar(&unpackJsonPath, "u", "", "Unpack from JSON file")
@@ -114,6 +114,8 @@ func main() {
 			os.Exit(0)
 		}
 		opts.Default()
+		name = utils.GetLastFolderName(inputPath)
+		opts.Name(name)
 	}
 
 	if inputPath == "" {
