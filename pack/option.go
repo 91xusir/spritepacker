@@ -33,7 +33,7 @@ func NewOptions() *Options {
 		maxH:        512,
 		name:        "atlas",
 		imgExt:      ".png",
-		autoSize:    false,
+		autoSize:    true,
 		padding:     0,
 		algorithm:   AlgoBasic,
 		heuristic:   BestShortSideFit,
@@ -42,6 +42,25 @@ func NewOptions() *Options {
 		trim:        false,
 		tolerance:   0,
 		sameDetect:  false,
+		powerOfTwo:  false,
+	}
+}
+
+func DefaultOptions() *Options {
+	return &Options{
+		maxW:        4096,
+		maxH:        4096,
+		name:        "atlas",
+		imgExt:      ".png",
+		autoSize:    true,
+		padding:     0,
+		algorithm:   AlgoSkyline,
+		heuristic:   BestShortSideFit,
+		sort:        true,
+		allowRotate: false,
+		trim:        true,
+		tolerance:   0,
+		sameDetect:  true,
 		powerOfTwo:  false,
 	}
 }

@@ -17,7 +17,7 @@ func (j *JsonExporter) SetExt(ext string) {
 }
 
 func (j *JsonExporter) Export(atlas *model.AtlasInfo) ([]byte, error) {
-	return json.Marshal(atlas)
+	return json.MarshalIndent(atlas, "", "    ")
 }
 
 func (j *JsonExporter) Import(data []byte) (*model.AtlasInfo, error) {

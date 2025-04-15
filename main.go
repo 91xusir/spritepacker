@@ -85,23 +85,21 @@ func flagArgs(opts *pack.Options) error {
 	allowRotate := flag.Bool("rot", false, "Allow sprite rotation to save space (default false)")
 	powerOfTwo := flag.Bool("pot", false, "Force atlas size to power of two (default false)")
 	name = *flag.String("name", "atlas", "Atlas name (default 'atlas')")
-	infoFormat = *flag.String("f1", "json", "Atlas info format (default 'json')")
-	imgFormat = *flag.String("f2", "png", "Atlas image format (default 'png')")
 	// ---- sprite processing options ----
 	sort := flag.Bool("sort", true, "Sort sprites by Area before packing (default true)")
 	trim := flag.Bool("trim", false, "Trim transparent edges from sprites (default false)")
 	tolerance := flag.Int("tol", 0, "Tolerance level for trimming (0-255) (default 0)")
 	sameDetect := flag.Bool("same", false, "Enable identical image detection (default false)")
-
 	// ---- algorithm settings ----
 	algorithm := flag.Int("algo", int(pack.AlgoSkyline), "Packing algorithm: 0=Basic, 1=Skyline, 2=MaxRects (Default: Skyline)")
 	heuristic := flag.Int("heur", int(pack.BestShortSideFit), "Heuristic for MaxRects (if used) 0=BestShortSideFit, 1=BestLongSideFit, 2=BestAreaFit, 3=BottomLeftRule, 4=ContactPointRule (Default: BestShortSideFit)")
-
 	// ---- general settings ----
 	flag.StringVar(&inputPath, "i", "", "Input directory containing sprite images")
 	flag.StringVar(&outputPath, "o", "", "Output directory to save atlases or unpacked sprites")
 	flag.StringVar(&unpackJsonPath, "u", "", "Unpack from JSON file")
 	flag.StringVar(&atlasImgPath, "img", "", "Atlas image path for unpacking")
+	flag.StringVar(&infoFormat, "f1", "json", "Atlas info format  (default 'json')")
+	flag.StringVar(&imgFormat, "f2", "png", "Atlas image format (default 'png')")
 	//version
 	vFlag := flag.Bool("v", false, "Show version")
 
@@ -123,7 +121,6 @@ func flagArgs(opts *pack.Options) error {
 		}
 		os.Exit(0)
 	}
-
 	// apply parsed flags to options
 	opts.MaxSize(*maxW, *maxH).
 		AutoSize(*autoSize).
@@ -155,6 +152,12 @@ func main() {
 	if unpackJsonPath != "" {
 		check(pack.UnpackSprites(unpackJsonPath, pack.WithImg(atlasImgPath), pack.WithOutput(outputPath)))
 		os.Exit(0)
+	}
+
+	args := flag.Args()
+	if len(args) > 0 && inputPath == "" {
+		inputPath = args[0]
+		opts = pack.DefaultOptions()
 	}
 
 	if inputPath == "" {
