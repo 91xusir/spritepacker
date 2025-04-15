@@ -163,6 +163,10 @@ func main() {
 	if inputPath == "" {
 		panic("input path is empty")
 	}
+	fmt.Printf("input path: %s\n", inputPath)
+	fmt.Printf("output path: %s\n", outputPath)
+	fmt.Printf("info format: %s\n", infoFormat)
+	fmt.Printf("image format: %s\n", imgFormat)
 
 	spriteAtlasInfo, atlasImages, err := pack.NewPacker(opts).PackSprites(inputPath)
 	check(err)

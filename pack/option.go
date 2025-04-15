@@ -86,7 +86,7 @@ func (b *Options) ImgExt(ext string) *Options {
 	}
 	f := strings.TrimPrefix(ext, ".")
 	switch f {
-	case "png", "jpg", "jpeg", "bmp", "tiff":
+	case "png", "jpg", "jpeg", "webp", "bmp", "tiff":
 		b.imgExt = "." + f
 	default:
 		b.imgExt = ".png"
