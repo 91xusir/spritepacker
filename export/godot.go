@@ -8,60 +8,68 @@ import (
 	"text/template"
 )
 
-// 模板数据结构
-type godotTemplateData struct {
-	Config godotConfig `json:"config"`
-	Rects  []godotRect `json:"rects"`
-	Mata   pack.Meta   `json:"mata"`
+type gdAtlas struct {
+	FileName string
+	Width    int
+	Height   int
 }
 
-type godotConfig struct {
-	ImageFile   string
-	ImageWidth  int
-	ImageHeight int
-}
-
-type godotRect struct {
+type gdRect struct {
 	Name   string
 	Frame  pack.Rect
 	Margin pack.Rect
 	Last   bool
 }
 
-type GodotExporter struct{}
+type godotTemplateData struct {
+	Meta    pack.Meta `json:"meta"`
+	Atlas   gdAtlas   `json:"Atlas"`
+	GdRects []gdRect  `json:"rects"`
+}
 
-func (g *GodotExporter) Export(atlas *pack.SpriteAtlas) ([]byte, error) {
-	if len(atlas.Atlases) == 0 {
-		return nil, fmt.Errorf("no atlas found")
+type GodotExporter struct {
+	ext string
+}
+
+func (g *GodotExporter) Ext() string {
+	return g.ext
+}
+func (g *GodotExporter) SetExt(ext string) {
+	g.ext = ext
+}
+
+func (g *GodotExporter) Export(atlasInfo *pack.AtlasInfo) ([]byte, error) {
+	if len(atlasInfo.Atlases) == 0 {
+		return nil, fmt.Errorf("no Atlas found")
 	}
-	a := atlas.Atlases[0]
-	rects := make([]godotRect, len(a.Sprites))
-	for i, sprite := range a.Sprites {
+	atlas := atlasInfo.Atlases[0]
+	gdRects := make([]gdRect, len(atlas.Sprites))
+	for i, sprite := range atlas.Sprites {
 		margin := pack.Rect{}
 		if sprite.Trimmed {
-			margin.X = sprite.Frame.X - (sprite.TrimmedRect.X)
+			margin.X = sprite.TrimmedRect.X
 			margin.Y = sprite.Frame.Y - (sprite.TrimmedRect.Y)
 			margin.W = sprite.SrcRect.W - sprite.Frame.W - margin.X
 			margin.H = sprite.SrcRect.H - sprite.Frame.H - margin.Y
 		}
-		rects[i] = godotRect{
+		gdRects[i] = gdRect{
 			Name:   sprite.FileName,
 			Frame:  sprite.Frame,
 			Margin: margin,
-			Last:   i == len(a.Sprites)-1,
+			Last:   i == len(atlas.Sprites)-1,
 		}
 	}
 	data := godotTemplateData{
-		Config: godotConfig{
-			ImageFile:   a.Name,
-			ImageWidth:  a.Size.W,
-			ImageHeight: a.Size.H,
+		Meta: atlasInfo.Meta,
+		Atlas: gdAtlas{
+			FileName: atlas.Name,
+			Width:    atlas.Size.W,
+			Height:   atlas.Size.H,
 		},
-		Rects: rects,
-		Mata:  atlas.Meta,
+		GdRects: gdRects,
 	}
 
-	tmpl, err := template.New("tpsheet").Parse(godotTemplate)
+	tmpl, err := template.New(g.Ext()).Parse(godotTemplate)
 	if err != nil {
 		return nil, err
 	}
@@ -70,7 +78,8 @@ func (g *GodotExporter) Export(atlas *pack.SpriteAtlas) ([]byte, error) {
 	return buf.Bytes(), err
 }
 
-func (g *GodotExporter) Import(data []byte) (*pack.SpriteAtlas, error) {
+// Import TODO test
+func (g *GodotExporter) Import(data []byte) (*pack.AtlasInfo, error) {
 	var raw struct {
 		Textures []struct {
 			Image   string    `json:"image"`
@@ -96,23 +105,18 @@ func (g *GodotExporter) Import(data []byte) (*pack.SpriteAtlas, error) {
 		trimmed := s.Margin.X != 0 || s.Margin.Y != 0 || s.Margin.W != 0 || s.Margin.H != 0
 		srcW := s.Region.W + s.Margin.X + s.Margin.W
 		srcH := s.Region.H + s.Margin.Y + s.Margin.H
-		trimmedRect := pack.Rect{
-			X: s.Region.X - s.Margin.X,
-			Y: s.Region.Y - s.Margin.Y,
-			W: srcW,
-			H: srcH,
-		}
+		trimmedRect := pack.NewRectByPosAndSize(s.Region.X-s.Margin.X, s.Region.Y-s.Margin.Y, srcW, srcH)
 		sprites[i] = pack.Sprite{
 			FileName:    s.Filename,
 			Frame:       s.Region,
-			SrcRect:     Size{W: srcW, H: srcH},
+			SrcRect:     pack.Size{W: srcW, H: srcH},
 			TrimmedRect: trimmedRect,
 			Trimmed:     trimmed,
-			Rotated:     false, // 可扩展支持
+			Rotated:     false, // godot not support rotated
 		}
 	}
-	return &pack.SpriteAtlas{
-		Meta: Meta{
+	return &pack.AtlasInfo{
+		Meta: pack.Meta{
 			Format: "tpsheet",
 		},
 		Atlases: []pack.Atlas{
@@ -126,15 +130,21 @@ func (g *GodotExporter) Import(data []byte) (*pack.SpriteAtlas, error) {
 }
 
 const godotTemplate = `{
+	"meta": {
+		"repo": "{{.Meta.Repo}}",
+		"format": "{{.Meta.Format}}",
+		"version": "{{.Meta.Version}}",
+		"timestamp": "{{.Meta.Timestamp}}"
+	},
 	"textures": [
 		{
-			"image": "{{.Config.ImageFile}}",
+			"image": "{{.Atlas.FileName}}",
 			"size": {
-				"w": {{.Config.ImageWidth}},
-				"h": {{.Config.ImageHeight}}
+				"w": {{.Atlas.Width}},
+				"h": {{.Atlas.Height}}
 			},
 			"sprites": [
-				{{range .Rects}}
+				{{- range .GdRects}}
 				{
 					"filename": "{{.Name}}",
 					"region": {
@@ -152,8 +162,5 @@ const godotTemplate = `{
 				}{{if not .Last}},{{end}}{{end}}
 			]
 		}
-	],
-	"meta": {
-		"app": "{{.Mata}}"
-	}
+	]
 }`

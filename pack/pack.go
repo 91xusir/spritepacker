@@ -84,14 +84,14 @@ func (p *Packer) PackRect(reqRects []Rect) []Bin {
 //   - spritePaths: the paths of the sprite images
 //
 // Returns:
-//   - *SpriteAtlas: the sprite atlas info
+//   - *AtlasInfo: the sprite atlas info
 //   - []image.Image: the atlas images
 //   - error
 //
 // Example:
 //
 //	spriteAtlas, atlasImages, err := packer.PackSprites("./input")
-func (p *Packer) PackSprites(input string) (*SpriteAtlas, []image.Image, error) {
+func (p *Packer) PackSprites(input string) (*AtlasInfo, []image.Image, error) {
 	spritePaths, err := ListFilePaths(input)
 	if err != nil {
 		return nil, nil, err
@@ -108,7 +108,7 @@ func (p *Packer) PackSprites(input string) (*SpriteAtlas, []image.Image, error) 
 	meta := getMateData()
 
 	// create sprite atlas
-	spriteAtlas := &SpriteAtlas{
+	spriteAtlas := &AtlasInfo{
 		Meta:    meta,
 		Atlases: make([]Atlas, 0),
 	}
@@ -119,7 +119,7 @@ func (p *Packer) PackSprites(input string) (*SpriteAtlas, []image.Image, error) 
 	bins := p.PackRect(reqRects)
 
 	// generate atlases info
-	//SpriteAtlas->
+	//AtlasInfo->
 	//			Meta
 	//			[]Atlases->
 	//					Name
@@ -141,8 +141,14 @@ func (p *Packer) PackSprites(input string) (*SpriteAtlas, []image.Image, error) 
 		}
 
 		// create atlas
+		var atlasName string
+		if len(bins) == 1 {
+			atlasName = p.option.name + ".png"
+		} else {
+			atlasName = fmt.Sprintf("%s_%d.png", p.option.name, i)
+		}
 		atlas := Atlas{
-			Name:    fmt.Sprintf("%s_%d", p.option.name, i),
+			Name:    atlasName,
 			Size:    atlasSize,
 			Sprites: make([]Sprite, 0, len(bin.PackedRects)),
 		}
@@ -319,7 +325,7 @@ func (p *Packer) getImageRects(filePaths []string) ([]Rect, []Size, map[int]Rect
 	return reqRects, srcRects, trimmedRectMap
 }
 
-func (p *Packer) createAtlasImages(atlas *SpriteAtlas) ([]image.Image, error) {
+func (p *Packer) createAtlasImages(atlas *AtlasInfo) ([]image.Image, error) {
 	var atlasImages = make([]image.Image, len(atlas.Atlases))
 	for i := range atlas.Atlases {
 		atlasSize := atlas.Atlases[i].Size

@@ -52,7 +52,7 @@ func UnpackSprites(jsonPath string, fn ...UnpackOpts) error {
 	}
 
 	jsonData, err := os.ReadFile(jsonPath)
-	var atlasInfo SpriteAtlas
+	var atlasInfo AtlasInfo
 	err = json.Unmarshal(jsonData, &atlasInfo)
 	if err != nil {
 		return err

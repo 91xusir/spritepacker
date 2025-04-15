@@ -44,7 +44,11 @@ func TestFixedDataFixedSize(t *testing.T) {
 
 // used fixed data and different size to test
 func TestFixedDataDiffSize(t *testing.T) {
-	reqRects, _ := getTestData("test_rect.txt")
+	reqRects, err := getTestData(testData)
+	if err != nil {
+		t.Errorf("getTestData failed: %v", err)
+		return
+	}
 
 	options := pack.NewOptions().
 		MaxSize(1024, 1024).AutoSize(true).
@@ -239,18 +243,19 @@ func formatRotateFlags(rects []pack.Rect) string {
 	return "[" + strings.Join(flags, ",") + "]"
 }
 
-func getTestData(path string) ([]pack.Rect, error) {
-	file, err := os.Open(path)
-	if err != nil {
-		return nil, err
-	}
-	defer file.Close()
-	scanner := bufio.NewScanner(file)
+func getTestData(testData string) ([]pack.Rect, error) {
+	scanner := bufio.NewScanner(strings.NewReader(testData))
 	var reqPackedRect []pack.Rect
 	id := 0
 	for scanner.Scan() {
-		line := scanner.Text()
+		line := strings.TrimSpace(scanner.Text())
+		if line == "" {
+			continue // 跳过空行
+		}
 		parts := strings.Fields(line)
+		if len(parts) < 2 {
+			return nil, fmt.Errorf("invalid line: %q", line)
+		}
 		w, err := strconv.Atoi(parts[0])
 		if err != nil {
 			return nil, fmt.Errorf("an error in parsing rectangle width: %w", err)
@@ -262,7 +267,6 @@ func getTestData(path string) ([]pack.Rect, error) {
 		rect := pack.NewRectBySizeAndId(w, h, id)
 		id++
 		reqPackedRect = append(reqPackedRect, rect)
-
 	}
 	if err := scanner.Err(); err != nil {
 		return nil, err
@@ -282,3 +286,106 @@ func formatElapsed(t time.Duration) string {
 		return fmt.Sprintf("%.2f s", t.Seconds())
 	}
 }
+
+const testData = `
+71 38
+68 80
+57 82
+30 73
+102 31
+68 42
+109 106
+40 42
+24 71
+95 101
+39 94
+100 108
+102 26
+57 89
+108 54
+92 107
+38 62
+38 32
+115 46
+68 37
+106 84
+55 73
+48 103
+107 64
+59 115
+26 99
+68 97
+41 63
+99 116
+21 60
+79 118
+113 85
+86 55
+33 114
+76 70
+27 47
+117 40
+30 46
+60 62
+87 55
+21 108
+60 67
+82 93
+44 49
+84 96
+89 34
+47 34
+94 44
+117 80
+91 62
+112 73
+37 92
+50 48
+113 100
+24 55
+56 27
+103 21
+61 24
+116 111
+51 62
+67 76
+95 57
+113 116
+63 49
+44 56
+52 47
+33 66
+102 53
+117 107
+40 106
+109 27
+79 99
+40 82
+98 96
+105 105
+94 31
+97 78
+50 23
+86 22
+39 59
+54 92
+37 67
+81 102
+58 33
+113 88
+117 71
+20 58
+65 63
+20 116
+114 69
+117 29
+99 88
+90 49
+35 80
+84 87
+79 111
+97 25
+115 21
+82 66
+79 84
+`

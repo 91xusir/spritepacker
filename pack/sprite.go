@@ -1,6 +1,6 @@
 package pack
 
-type SpriteAtlas struct {
+type AtlasInfo struct {
 	Meta    Meta    `json:"meta"`
 	Atlases []Atlas `json:"atlases"`
 }

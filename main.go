@@ -99,10 +99,22 @@ func flagArgs(opts *pack.Options) error {
 	//version
 	vFlag := flag.Bool("v", false, "Show version")
 
+	cFlag := flag.Bool("c", false, "compare input and output images")
+
 	flag.Parse()
 
 	if *vFlag {
 		fmt.Println("SpritePacker " + pack.Version)
+		os.Exit(0)
+	}
+
+	if *cFlag {
+		diffs := pack.CompareImgFormFolders(inputPath, outputPath)
+		if len(diffs) > 0 {
+			fmt.Printf("Found %d different images:\n", len(diffs))
+		} else {
+			fmt.Printf("All images are the same.\n")
+		}
 		os.Exit(0)
 	}
 
@@ -132,19 +144,24 @@ func main() {
 
 	opts := pack.NewOptions()
 	check(flagArgs(opts))
+
 	if unpackJsonPath != "" {
 		check(pack.UnpackSprites(unpackJsonPath, pack.WithImg(atlasImgPath), pack.WithOutput(outputPath)))
 		os.Exit(0)
 	}
+
 	if inputPath == "" {
 		panic("input path is empty")
 	}
+
 	spriteAtlasInfo, atlasImages, err := pack.NewPacker(opts).PackSprites(inputPath)
 	check(err)
+
 	for i := range atlasImages {
 		filePath := filepath.Join(outputPath, spriteAtlasInfo.Atlases[i].Name)
-		check(pack.SaveImgAutoExt(filePath, atlasImages[i], pack.PNG, pack.WithCLV(pack.DefaultCompression)))
+		check(pack.SaveImgByExt(filePath, atlasImages[i], pack.WithCLV(pack.DefaultCompression)))
 	}
+
 	jsonBytes, err := json.MarshalIndent(spriteAtlasInfo, "", "  ")
 	check(err)
 	check(os.WriteFile(filepath.Join(outputPath, name+".json"), jsonBytes, os.ModePerm))
