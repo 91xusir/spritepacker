@@ -11,10 +11,13 @@ import (
 	"time"
 )
 
+var (
+	Version = "dev"
+)
+
 const (
-	Version = "0.0.1"
-	Repo    = "https://github.com/91xusir/spritepacker"
-	Format  = "RGBA8888"
+	Repo   = "https://github.com/91xusir/spritepacker"
+	Format = "RGBA8888"
 )
 
 type Packer struct {

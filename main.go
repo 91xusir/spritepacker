@@ -55,6 +55,7 @@ package main
 import (
 	"encoding/json"
 	"flag"
+	"fmt"
 	"github.com/91xusir/spritepacker/pack"
 	"os"
 	"path/filepath"
@@ -94,8 +95,15 @@ func flagArgs(opts *pack.Options) error {
 	flag.StringVar(&outputPath, "o", "", "Output directory to save atlases or unpacked sprites")
 	flag.StringVar(&unpackJsonPath, "u", "", "Unpack from JSON file")
 	flag.StringVar(&atlasImgPath, "img", "", "Atlas image path for unpacking")
+	//version
+	vFlag := flag.Bool("v", false, "Show version")
 
 	flag.Parse()
+
+	if *vFlag {
+		fmt.Println("SpritePacker " + pack.Version)
+		os.Exit(0)
+	}
 
 	// apply parsed flags to options
 	opts.MaxSize(*maxW, *maxH).
