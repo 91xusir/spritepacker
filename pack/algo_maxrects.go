@@ -89,13 +89,7 @@ func (algo *algoMaxrects) calculateScore(freeRect model.Rect, rectW, rectH int) 
 
 func (algo *algoMaxrects) calculateContactPoint(freeRect model.Rect, rectW, rectH int) int {
 	contactScore := 0
-	//newRect := FreeRect{
-	//	X:    freeRect.X,
-	//	Y:    freeRect.Y,
-	//	Rect: Rect{H: rectH, W: rectW},
-	//}
 	newRect := freeRect.CloneWithSize(rectW, rectH)
-
 	if newRect.X == 0 || newRect.X+newRect.W == algo.w {
 		contactScore += newRect.H
 	}
@@ -110,7 +104,6 @@ func (algo *algoMaxrects) calculateContactPoint(freeRect model.Rect, rectW, rect
 				contactScore += overlap
 			}
 		}
-
 		if newRect.Y == usedRect.Y+usedRect.H || newRect.Y+newRect.H == usedRect.Y {
 			overlap := utils.MinInt(newRect.X+newRect.W, usedRect.X+usedRect.W) -
 				utils.MaxInt(newRect.X, usedRect.X)
@@ -142,55 +135,22 @@ func (algo *algoMaxrects) splitFreeRect(freeRect model.Rect, usedRect model.Rect
 
 	// upper part
 	if usedRect.Y > freeRect.Y {
-		/*algo.freeRects = append(algo.freeRects, FreeRect{
-			X: freeRect.X,
-			Y: freeRect.Y,
-			Rect: Rect{
-				W: freeRect.W,
-				H: usedRect.Y - freeRect.Y,
-			},
-		})*/
 		algo.freeRects = append(algo.freeRects, freeRect.CloneWithSize(freeRect.W, usedRect.Y-freeRect.Y))
 
 	}
 
 	// lower part
 	if usedRect.Y+usedRect.H < freeRect.Y+freeRect.H {
-		//algo.freeRects = append(algo.freeRects, FreeRect{
-		//	X: freeRect.X,
-		//	Y: usedRect.Y + usedRect.H,
-		//	Rect: Rect{
-		//		W: freeRect.W,
-		//		H: freeRect.Y + freeRect.H - (usedRect.Y + usedRect.H),
-		//	},
-		//})
 		algo.freeRects = append(algo.freeRects, model.NewRectByPosAndSize(freeRect.X, usedRect.Y+usedRect.H, freeRect.W, freeRect.Y+freeRect.H-(usedRect.Y+usedRect.H)))
 	}
 
 	// left part
 	if usedRect.X > freeRect.X {
-
-		//algo.freeRects = append(algo.freeRects, FreeRect{
-		//	X: freeRect.X,
-		//	Y: freeRect.Y,
-		//	Rect: Rect{
-		//		W: usedRect.X - freeRect.X,
-		//		H: freeRect.H,
-		//	},
-		//})
 		algo.freeRects = append(algo.freeRects, freeRect.CloneWithSize(usedRect.X-freeRect.X, freeRect.H))
 	}
 
 	// right part
 	if usedRect.X+usedRect.W < freeRect.X+freeRect.W {
-		//algo.freeRects = append(algo.freeRects, FreeRect{
-		//	X: usedRect.X + usedRect.W,
-		//	Y: freeRect.Y,
-		//	Rect: Rect{
-		//		W: freeRect.X + freeRect.W - (usedRect.X + usedRect.W),
-		//		H: freeRect.H,
-		//	},
-		//})
 		algo.freeRects = append(algo.freeRects, model.NewRectByPosAndSize(usedRect.X+usedRect.W, freeRect.Y, freeRect.X+freeRect.W-(usedRect.X+usedRect.W), freeRect.H))
 	}
 	return true
@@ -212,9 +172,3 @@ func (algo *algoMaxrects) pruneFreeList() {
 		}
 	}
 }
-
-//func (algo *algoMaxrects) isContained(rect1, rect2 Rect) bool {
-//	return rect1.X >= rect2.X && rect1.Y >= rect2.Y &&
-//		rect1.X+rect1.W <= rect2.X+rect2.W &&
-//		rect1.Y+rect1.H <= rect2.Y+rect2.H
-//}
