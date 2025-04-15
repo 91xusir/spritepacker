@@ -46,23 +46,15 @@ func NewOptions() *Options {
 	}
 }
 
-func DefaultOptions() *Options {
-	return &Options{
-		maxW:        4096,
-		maxH:        4096,
-		name:        "atlas",
-		imgExt:      ".png",
-		autoSize:    true,
-		padding:     0,
-		algorithm:   AlgoSkyline,
-		heuristic:   BestShortSideFit,
-		sort:        true,
-		allowRotate: false,
-		trim:        true,
-		tolerance:   0,
-		sameDetect:  true,
-		powerOfTwo:  false,
-	}
+func (b *Options) Default() *Options {
+	b.maxW = 4096
+	b.maxH = 4096
+	b.autoSize = true
+	b.algorithm = AlgoSkyline
+	b.sort = true
+	b.trim = true
+	b.sameDetect = true
+	return b
 }
 
 // MaxSize sets the maximum size of the atlas.

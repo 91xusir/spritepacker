@@ -68,7 +68,7 @@ func UnpackAtlas(atlasInfo *model.AtlasInfo, opts unpackedOpts) error {
 	for i := range atlasInfo.Atlases {
 		baseNames[i] = strings.TrimSuffix(filepath.Base(atlasInfo.Atlases[i].Name), filepath.Ext(atlasInfo.Atlases[i].Name))
 	}
-	extStr := []string{".png", ".jpg", ".jpeg", ".bmp", ".tiff"}
+	extStr := []string{".png", ".jpg", ".jpeg", ".bmp", ".tiff", ".webp"}
 	for i, baseName := range baseNames {
 		var imgFilePath string
 		found := false

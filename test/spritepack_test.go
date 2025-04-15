@@ -16,6 +16,7 @@ func TestSpritePacker(t *testing.T) {
 		AllowRotate(false).
 		Algorithm(pack.AlgoBasic).
 		Heuristic(pack.ContactPointFit).
+		ImgExt("webp").
 		SameDetect(true).
 		AutoSize(true).
 		PowerOfTwo(false)
@@ -27,13 +28,13 @@ func TestSpritePacker(t *testing.T) {
 		_ = utils.SaveImgByExt(outputPath, atlasImages[i], utils.WithCLV(utils.DefaultCompression))
 	}
 
-	_ = export.NewExportManager().Init().Export("output/atlas.json", atlasInfo)
+	_ = export.NewExportManager().Init().Export("output/atlas.tpsheet", atlasInfo)
 
 }
 
 func TestSpriteUnpack(t *testing.T) {
 	// pack.UnpackSprites("output/atlas.json", pack.WithImgInput("output"), pack.WithOutput("output"))
-	err := pack.UnpackSprites("output/atlas.json")
+	err := pack.UnpackSprites("output/atlas.tpsheet")
 	if err != nil {
 		t.Errorf("Failed to unpack sprites: %v", err)
 		return

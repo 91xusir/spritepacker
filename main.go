@@ -107,7 +107,13 @@ func main() {
 	args := flag.Args()
 	if len(args) > 0 && inputPath == "" {
 		inputPath = args[0]
-		opts = pack.DefaultOptions()
+		f, err := os.Stat(inputPath)
+		check(err)
+		if !f.IsDir() {
+			check(pack.UnpackSprites(inputPath, pack.WithImgInput(atlasImgPath), pack.WithOutput(outputPath)))
+			os.Exit(0)
+		}
+		opts.Default()
 	}
 
 	if inputPath == "" {
