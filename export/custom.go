@@ -3,7 +3,7 @@ package export
 import (
 	"bytes"
 	"errors"
-	"github.com/91xusir/spritepacker/pack"
+	"github.com/91xusir/spritepacker/model"
 	"text/template"
 )
 
@@ -13,10 +13,10 @@ import (
 type TemplateExporter struct {
 	ext          string
 	templateStr  string
-	parseFunc    func([]byte) (*pack.AtlasInfo, error)
+	parseFunc    func([]byte) (*model.AtlasInfo, error)
 	templateFunc template.FuncMap
 }
-type ParseFunc func([]byte) (*pack.AtlasInfo, error)
+type ParseFunc func([]byte) (*model.AtlasInfo, error)
 
 func NewTemplateExporter(templateStr string, parseFunc ParseFunc) *TemplateExporter {
 	return &TemplateExporter{
@@ -31,7 +31,7 @@ func NewTemplateExporter(templateStr string, parseFunc ParseFunc) *TemplateExpor
 	}
 }
 
-func (e *TemplateExporter) Export(atlas *pack.AtlasInfo) ([]byte, error) {
+func (e *TemplateExporter) Export(atlas *model.AtlasInfo) ([]byte, error) {
 	if e.templateStr == "" {
 		return nil, errors.New("template string is empty")
 	}
@@ -49,7 +49,7 @@ func (e *TemplateExporter) Export(atlas *pack.AtlasInfo) ([]byte, error) {
 	return buf.Bytes(), nil
 }
 
-func (e *TemplateExporter) Import(data []byte) (*pack.AtlasInfo, error) {
+func (e *TemplateExporter) Import(data []byte) (*model.AtlasInfo, error) {
 	if e.parseFunc == nil {
 		return nil, errors.New("parse function is not provided")
 	}

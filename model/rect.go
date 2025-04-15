@@ -1,4 +1,4 @@
-package pack
+package model
 
 import (
 	"fmt"
@@ -32,9 +32,20 @@ func (s Size) Rotated() Size {
 }
 
 func (s Size) PowerOfTwo() Size {
-	s.W = NextPowerOfTwo(s.W)
-	s.H = NextPowerOfTwo(s.H)
+	s.W = nextPowerOfTwo(s.W)
+	s.H = nextPowerOfTwo(s.H)
 	return s
+}
+
+func nextPowerOfTwo(n int) int {
+	n--
+	n |= n >> 1
+	n |= n >> 2
+	n |= n >> 4
+	n |= n >> 8
+	n |= n >> 16
+	n++
+	return n
 }
 
 type Point struct {
@@ -76,7 +87,7 @@ func NewRectBySizeAndId(w, h, id int) Rect {
 func NewRectByPosAndSize(x, y, w, h int) Rect {
 	return NewRect(x, y, w, h, 0)
 }
-func (r Rect) isContainedIn(rect Rect) bool {
+func (r Rect) IsContainedIn(rect Rect) bool {
 	return r.X >= rect.X && r.Y >= rect.Y && r.X+r.W <= rect.X+rect.W && r.Y+r.H <= rect.Y+rect.H
 }
 
@@ -88,6 +99,7 @@ func (r Rect) CloneWithPos(x, y int) Rect {
 		IsRotated: r.IsRotated,
 	}
 }
+
 func (r Rect) CloneWithSize(w, h int) Rect {
 	return Rect{
 		Point:     r.Point,
@@ -144,14 +156,4 @@ func (b Bin) FillRate() float64 {
 
 func (b Bin) String() string {
 	return fmt.Sprintf("Bin{W:%d, H:%d,UsedArea:%d, FillRate:%.2f%%}", b.W, b.H, b.UsedArea, b.FillRate()*100)
-}
-
-func addPadding(rect *Rect, padding int) {
-	rect.W += padding
-	rect.H += padding
-}
-
-func removePadding(rect *Rect, padding int) {
-	rect.W -= padding
-	rect.H -= padding
 }

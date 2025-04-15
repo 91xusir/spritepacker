@@ -2,6 +2,7 @@ package pack
 
 import (
 	"errors"
+	"strings"
 )
 
 type Options struct {
@@ -21,6 +22,7 @@ type Options struct {
 	tolerance  uint8  // tolerance for trimming transparency pixels 0-255
 	sameDetect bool   // same detection
 	powerOfTwo bool   // the atlas pixels are fixed to a power of 2
+	imgExt     string // image format
 	//----validate----
 	err error
 }
@@ -30,6 +32,7 @@ func NewOptions() *Options {
 		maxW:        512,
 		maxH:        512,
 		name:        "atlas",
+		imgExt:      ".png",
 		autoSize:    false,
 		padding:     0,
 		algorithm:   AlgoBasic,
@@ -55,6 +58,20 @@ func (b *Options) MaxSize(w, h int) *Options {
 	}
 	b.maxW = w
 	b.maxH = h
+	return b
+}
+
+func (b *Options) ImgExt(ext string) *Options {
+	if b.err != nil {
+		return b
+	}
+	f := strings.TrimPrefix(ext, ".")
+	switch f {
+	case "png", "jpg", "jpeg", "bmp", "tiff":
+		b.imgExt = "." + f
+	default:
+		b.imgExt = ".png"
+	}
 	return b
 }
 

@@ -3,7 +3,7 @@ package spritepacker
 import (
 	"encoding/json"
 	"github.com/91xusir/spritepacker/export"
-	"github.com/91xusir/spritepacker/pack"
+	"github.com/91xusir/spritepacker/model"
 	"os"
 	"testing"
 	"time"
@@ -15,7 +15,7 @@ func TestExport(t *testing.T) {
 		t.Errorf("os.ReadFile failed: %v", err)
 		return
 	}
-	var atlas pack.AtlasInfo
+	var atlas model.AtlasInfo
 	if err = json.Unmarshal(data, &atlas); err != nil {
 		t.Errorf("json.Unmarshal failed: %v", err)
 		return
@@ -61,29 +61,29 @@ const ATLAS_DATA = {
 export default ATLAS_DATA;
 `
 	manager.RegisterTemplate(".js", jsTemplate, nil)
-	atlas := &pack.AtlasInfo{
-		Meta: pack.Meta{
+	atlas := &model.AtlasInfo{
+		Meta: model.Meta{
 			Repo:      "https://github.com/user/spritepacker",
 			Format:    "RGBA8888",
 			Version:   "1.0.0",
 			Timestamp: time.Now().Format(time.RFC3339),
 		},
-		Atlases: []pack.Atlas{
+		Atlases: []model.Atlas{
 			{
 				Name: "main",
-				Size: pack.Size{W: 1024, H: 1024},
-				Sprites: []pack.Sprite{
+				Size: model.Size{W: 1024, H: 1024},
+				Sprites: []model.Sprite{
 					{
 						FileName: "player.png",
-						Frame:    pack.NewRectByPosAndSize(0, 0, 64, 64),
-						SrcRect:  pack.Size{W: 64, H: 64},
+						Frame:    model.NewRectByPosAndSize(0, 0, 64, 64),
+						SrcRect:  model.Size{W: 64, H: 64},
 						Rotated:  false,
 						Trimmed:  false,
 					},
 					{
 						FileName: "enemy.png",
-						Frame:    pack.NewRectByPosAndSize(0, 0, 64, 64),
-						SrcRect:  pack.Size{W: 32, H: 32},
+						Frame:    model.NewRectByPosAndSize(0, 0, 64, 64),
+						SrcRect:  model.Size{W: 32, H: 32},
 						Rotated:  false,
 						Trimmed:  false,
 					},

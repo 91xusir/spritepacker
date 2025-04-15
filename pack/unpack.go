@@ -1,8 +1,10 @@
 package pack
 
 import (
-	"encoding/json"
 	"fmt"
+	"github.com/91xusir/spritepacker/export"
+	"github.com/91xusir/spritepacker/model"
+	"github.com/91xusir/spritepacker/utils"
 	"image"
 	"image/draw"
 	"os"
@@ -37,34 +39,36 @@ func WithOutput(outputPath string) UnpackOpts {
 	}
 }
 
-func UnpackSprites(jsonPath string, fn ...UnpackOpts) error {
+func UnpackSprites(infoPath string, fn ...UnpackOpts) error {
 	opts := &unpackedOpts{
-		atlasImgPath: filepath.Dir(jsonPath),
-		outputPath:   filepath.Dir(jsonPath),
+		atlasImgPath: filepath.Dir(infoPath),
+		outputPath:   filepath.Dir(infoPath),
 	}
 	for _, f := range fn {
 		f(opts)
 	}
-
 	// make sure outputPath exists
 	if err := os.MkdirAll(opts.outputPath, os.ModePerm); err != nil {
 		return err
 	}
-
-	jsonData, err := os.ReadFile(jsonPath)
-	var atlasInfo AtlasInfo
-	err = json.Unmarshal(jsonData, &atlasInfo)
+	exporter := export.NewExportManager().Init()
+	atlasInfo, err := exporter.Import(infoPath)
 	if err != nil {
 		return err
 	}
+	err = UnpackAtlas(atlasInfo, *opts)
+	if err != nil {
+		return err
+	}
+	return nil
+}
 
+func UnpackAtlas(atlasInfo *model.AtlasInfo, opts unpackedOpts) error {
 	baseNames := make([]string, len(atlasInfo.Atlases))
 	for i := range atlasInfo.Atlases {
 		baseNames[i] = strings.TrimSuffix(filepath.Base(atlasInfo.Atlases[i].Name), filepath.Ext(atlasInfo.Atlases[i].Name))
 	}
-
 	extStr := []string{".png", ".jpg", ".jpeg", ".bmp", ".tiff"}
-
 	for i, baseName := range baseNames {
 		var imgFilePath string
 		found := false
@@ -79,7 +83,7 @@ func UnpackSprites(jsonPath string, fn ...UnpackOpts) error {
 		if !found {
 			return fmt.Errorf("image file for atlas %s not found", baseName)
 		}
-		atlasImg, err := LoadImg(imgFilePath)
+		atlasImg, err := utils.LoadImg(imgFilePath)
 		if err != nil {
 			return fmt.Errorf("failed to load image %s: %v", imgFilePath, err)
 		}
@@ -94,7 +98,7 @@ func UnpackSprites(jsonPath string, fn ...UnpackOpts) error {
 			draw.Draw(subImg, subImg.Bounds(), atlasImg, srcLeftTopPoint, draw.Src)
 			// if rotated
 			if sprite.Rotated {
-				subImg = Rotate90(subImg)
+				subImg = utils.Rotate90(subImg)
 			}
 			// if trimmed
 			if sprite.Trimmed {
@@ -108,7 +112,7 @@ func UnpackSprites(jsonPath string, fn ...UnpackOpts) error {
 				draw.Draw(img, destRect, subImg, image.Point{}, draw.Src)
 				subImg = img
 			}
-			err := SaveImgByExt(outputPath, subImg)
+			err := utils.SaveImgByExt(outputPath, subImg)
 			if err != nil {
 				return fmt.Errorf("failed to save image %s: %v", outputPath, err)
 			}

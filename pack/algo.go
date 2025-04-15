@@ -1,5 +1,7 @@
 package pack
 
+import "github.com/91xusir/spritepacker/model"
+
 // Algorithm defines the packing algorithm used.
 type Algorithm int
 
@@ -24,9 +26,9 @@ const (
 
 // algo is the interface that wraps the Pack method.
 type algo interface {
-	init(opt *Options)                        // Init initializes the algo with the given bin and Options.
-	packing(reqRects []Rect) ([]Rect, []Rect) // Pack packs the given rectangles into the bin and returns Packed and Unpacked rectangles.
-	reset(w, h int)                           // ResetWH resets the width and height of the bin.
+	init(opt *Options)                                          // Init initializes the algo with the given bin and Options.
+	packing(reqRects []model.Rect) ([]model.Rect, []model.Rect) // Pack packs the given rectangles into the bin and returns Packed and Unpacked rectangles.
+	reset(w, h int)                                             // ResetWH resets the width and height of the bin.
 }
 
 // algoBasic basicAlgorithms
@@ -45,9 +47,9 @@ func (algo *algoBasic) init(opt *Options) {
 	algo.allowRotate = opt.allowRotate
 }
 
-func (algo *algoBasic) packing(reqRects []Rect) ([]Rect, []Rect) {
-	packedRects := make([]Rect, 0, len(reqRects))
-	unpackedRects := make([]Rect, 0)
+func (algo *algoBasic) packing(reqRects []model.Rect) ([]model.Rect, []model.Rect) {
+	packedRects := make([]model.Rect, 0, len(reqRects))
+	unpackedRects := make([]model.Rect, 0)
 	totalArea := 0
 	currentX, currentY := 0, 0
 	maxYInRow := 0

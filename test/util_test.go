@@ -1,7 +1,7 @@
 package spritepacker
 
 import (
-	"github.com/91xusir/spritepacker/pack"
+	"github.com/91xusir/spritepacker/utils"
 	"testing"
 )
 
@@ -17,7 +17,7 @@ func TestNaturalSort(t *testing.T) {
 		"/path/to/file10.txt",
 		"/path/to/file2.txt",
 	}
-	pack.NaturalSort(files)
+	utils.NaturalSort(files)
 	for i, file := range files {
 		t.Logf("file[%d] = %s", i, file)
 	}
@@ -30,9 +30,9 @@ func TestNaturalSort(t *testing.T) {
 // util_test.go:29: key 32.png, value 29.png
 // util_test.go:32: key 29.png, value [30.png 31.png 32.png]
 func TestFindDuplicateImages(t *testing.T) {
-	files, _ := pack.ListFilePaths("../test/input")
+	files, _ := utils.ListFilePaths("../test/input")
 	t.Logf("before len %d ", len(files))
-	paths, info, _ := pack.FindDuplicateFiles(files)
+	paths, info, _ := utils.FindDuplicateFiles(files)
 	t.Logf("after len %d ", len(paths))
 	for k, v := range info.DupeToBaseName {
 		t.Logf("key %s, value %v", k, v)

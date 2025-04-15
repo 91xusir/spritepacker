@@ -3,6 +3,7 @@ package pack
 import (
 	"container/heap"
 	"fmt"
+	"github.com/91xusir/spritepacker/model"
 )
 
 // skyline represents a skyline.
@@ -47,10 +48,10 @@ func (algo *algoSkyline) init(opt *Options) {
 	algo.skyLineQueue = append(algo.skyLineQueue, skyline{x: 0, y: 0, len: algo.w})
 }
 
-func (algo *algoSkyline) packing(reqRects []Rect) ([]Rect, []Rect) {
+func (algo *algoSkyline) packing(reqRects []model.Rect) ([]model.Rect, []model.Rect) {
 	totalArea := 0
-	packedRects := make([]Rect, 0, len(reqRects))
-	unpackedRects := make([]Rect, 0)
+	packedRects := make([]model.Rect, 0, len(reqRects))
+	unpackedRects := make([]model.Rect, 0)
 	used := make([]bool, len(reqRects))
 	for algo.skyLineQueue.Len() != 0 && len(packedRects) < len(reqRects) {
 		skyLine := heap.Pop(&algo.skyLineQueue).(skyline)
@@ -101,7 +102,7 @@ func (algo *algoSkyline) getHLHR(skyLine skyline) (int, int) {
 }
 
 // selectMaxScoreRect selects the rectangle with the highest score
-func (algo *algoSkyline) selectMaxScoreRect(skyLine skyline, hl, hr int, used []bool, reqRects []Rect) (int, int, bool) {
+func (algo *algoSkyline) selectMaxScoreRect(skyLine skyline, hl, hr int, used []bool, reqRects []model.Rect) (int, int, bool) {
 	maxRectIndex, maxScore := -1, -1
 	isRotate := false
 	for i := range reqRects {
@@ -126,7 +127,7 @@ func (algo *algoSkyline) selectMaxScoreRect(skyLine skyline, hl, hr int, used []
 }
 
 // placeRect places the rectangle at the specified position
-func (algo *algoSkyline) placeRect(maxRectIndex int, skyLine skyline, isRotate bool, hl, hr, maxScore int, reqRects []Rect) Rect {
+func (algo *algoSkyline) placeRect(maxRectIndex int, skyLine skyline, isRotate bool, hl, hr, maxScore int, reqRects []model.Rect) model.Rect {
 	if (hl >= hr && maxScore == 2) || (!(hl >= hr) && (maxScore == 4 || maxScore == 0)) {
 		return algo.placeRight(reqRects[maxRectIndex], skyLine, isRotate)
 	}
@@ -134,7 +135,7 @@ func (algo *algoSkyline) placeRect(maxRectIndex int, skyLine skyline, isRotate b
 }
 
 // placeLeft Place the rectangle to the left
-func (algo *algoSkyline) placeLeft(rect Rect, skyLine skyline, isRotate bool) Rect {
+func (algo *algoSkyline) placeLeft(rect model.Rect, skyLine skyline, isRotate bool) model.Rect {
 	packedRect := rect.CloneWithPos(skyLine.x, skyLine.y)
 	if isRotate {
 		packedRect = packedRect.Rotated()
@@ -145,8 +146,8 @@ func (algo *algoSkyline) placeLeft(rect Rect, skyLine skyline, isRotate bool) Re
 }
 
 // placeRight Place the rectangle to the right
-func (algo *algoSkyline) placeRight(rect Rect, skyLine skyline, isRotate bool) Rect {
-	var packedRect Rect
+func (algo *algoSkyline) placeRight(rect model.Rect, skyLine skyline, isRotate bool) model.Rect {
+	var packedRect model.Rect
 	if !isRotate {
 		packedRect = rect.CloneWithPos(skyLine.x+skyLine.len-rect.W, skyLine.y)
 	} else {

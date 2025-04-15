@@ -14,15 +14,16 @@ Usage:
 
 Packing Options:
 
+	-v            Show version information
 	-I    string  Input directory containing sprite images (required for packing)
 	-o    string  Output directory (default "output")
+	-name string  Base name for output files (default "atlas")
 	-maxw int     Maximum atlas width (default 2048)
 	-maxh int     Maximum atlas height (default 2048)
 	-pad  int     Padding between sprites (default 0)
 	-auto         Automatically adjust atlas size (default true)
 	-rot          Allow sprite rotation to save space (default false)
 	-pot          Force power-of-two atlas dimensions (default false)
-	-name string  Base name for output files (default "atlas")
 	-sort         Sorts sprites before packing (default true)
 	-trim         Trims transparent edges (default false)
 	-tol  int     Transparency tolerance for trimming (0-255, default 0)
@@ -53,13 +54,15 @@ The package includes:
 package main
 
 import (
-	"encoding/json"
 	"flag"
 	"fmt"
+	"github.com/91xusir/spritepacker/export"
 	"github.com/91xusir/spritepacker/pack"
+	"github.com/91xusir/spritepacker/utils"
 	"os"
 	"path/filepath"
 	"runtime/debug"
+	"strings"
 )
 
 var (
@@ -68,6 +71,8 @@ var (
 	unpackJsonPath string
 	atlasImgPath   string
 	name           string
+	infoFormat     string
+	imgFormat      string
 )
 
 // flagArgs function to parse the command line arguments and populate the options
@@ -80,7 +85,8 @@ func flagArgs(opts *pack.Options) error {
 	allowRotate := flag.Bool("rot", false, "Allow sprite rotation to save space (default false)")
 	powerOfTwo := flag.Bool("pot", false, "Force atlas size to power of two (default false)")
 	name = *flag.String("name", "atlas", "Atlas name (default 'atlas')")
-
+	infoFormat = *flag.String("f1", "json", "Atlas info format (default 'json')")
+	imgFormat = *flag.String("f2", "png", "Atlas image format (default 'png')")
 	// ---- sprite processing options ----
 	sort := flag.Bool("sort", true, "Sort sprites by Area before packing (default true)")
 	trim := flag.Bool("trim", false, "Trim transparent edges from sprites (default false)")
@@ -109,7 +115,7 @@ func flagArgs(opts *pack.Options) error {
 	}
 
 	if *cFlag {
-		diffs := pack.CompareImgFormFolders(inputPath, outputPath)
+		diffs := utils.CompareImgFormFolders(inputPath, outputPath)
 		if len(diffs) > 0 {
 			fmt.Printf("Found %d different images:\n", len(diffs))
 		} else {
@@ -128,6 +134,7 @@ func flagArgs(opts *pack.Options) error {
 		Trim(*trim).
 		Tolerance(*tolerance).
 		SameDetect(*sameDetect).
+		ImgExt(imgFormat).
 		Name(name).
 		Algorithm(pack.Algorithm(*algorithm)).
 		Heuristic(pack.Heuristic(*heuristic))
@@ -159,16 +166,18 @@ func main() {
 
 	for i := range atlasImages {
 		filePath := filepath.Join(outputPath, spriteAtlasInfo.Atlases[i].Name)
-		check(pack.SaveImgByExt(filePath, atlasImages[i], pack.WithCLV(pack.DefaultCompression)))
+		check(utils.SaveImgByExt(filePath, atlasImages[i], utils.WithCLV(utils.DefaultCompression)))
 	}
-
-	jsonBytes, err := json.MarshalIndent(spriteAtlasInfo, "", "  ")
-	check(err)
-	check(os.WriteFile(filepath.Join(outputPath, name+".json"), jsonBytes, os.ModePerm))
+	exporter := export.NewExportManager().Init()
+	_ = exporter.Export(filepath.Join(outputPath, name+dotFormat(infoFormat)), spriteAtlasInfo)
 }
 
 func check(err error) {
 	if err != nil {
 		panic(err)
 	}
+}
+
+func dotFormat(format string) string {
+	return "." + strings.TrimPrefix(format, ".")
 }

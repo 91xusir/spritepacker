@@ -1,32 +1,34 @@
 package pack
 
 import (
+	"github.com/91xusir/spritepacker/model"
+	"github.com/91xusir/spritepacker/utils"
 	"math"
 )
 
 type algoMaxrects struct {
 	algoBasic
-	usedRects []Rect
-	freeRects []Rect
+	usedRects []model.Rect
+	freeRects []model.Rect
 	method    Heuristic
 }
 
 func (algo *algoMaxrects) init(opt *Options) {
 	algo.algoBasic.init(opt)
-	algo.freeRects = []Rect{NewRectByPosAndSize(0, 0, algo.w, algo.h)}
-	algo.usedRects = make([]Rect, 0)
+	algo.freeRects = []model.Rect{model.NewRectByPosAndSize(0, 0, algo.w, algo.h)}
+	algo.usedRects = make([]model.Rect, 0)
 	algo.method = opt.heuristic
 }
 
 func (algo *algoMaxrects) reset(w, h int) {
 	algo.algoBasic.reset(w, h)
-	algo.freeRects = []Rect{NewRectByPosAndSize(0, 0, algo.w, algo.h)}
-	algo.usedRects = make([]Rect, 0)
+	algo.freeRects = []model.Rect{model.NewRectByPosAndSize(0, 0, algo.w, algo.h)}
+	algo.usedRects = make([]model.Rect, 0)
 }
 
-func (algo *algoMaxrects) packing(reqRects []Rect) ([]Rect, []Rect) {
-	packedRects := make([]Rect, 0, len(reqRects))
-	unpackedRects := make([]Rect, 0)
+func (algo *algoMaxrects) packing(reqRects []model.Rect) ([]model.Rect, []model.Rect) {
+	packedRects := make([]model.Rect, 0, len(reqRects))
+	unpackedRects := make([]model.Rect, 0)
 	for _, rect := range reqRects {
 		if packedRect, ok := algo.insert(rect); ok {
 			packedRects = append(packedRects, packedRect)
@@ -37,17 +39,17 @@ func (algo *algoMaxrects) packing(reqRects []Rect) ([]Rect, []Rect) {
 	return packedRects, unpackedRects
 }
 
-func (algo *algoMaxrects) insert(rect Rect) (Rect, bool) {
+func (algo *algoMaxrects) insert(rect model.Rect) (model.Rect, bool) {
 	bestNode := algo.findBestPosition(rect)
 	if bestNode.H == 0 {
-		return Rect{}, false
+		return model.Rect{}, false
 	}
 	algo.placeRect(bestNode)
 	return bestNode, true
 }
 
-func (algo *algoMaxrects) findBestPosition(rect Rect) Rect {
-	var bestNode Rect
+func (algo *algoMaxrects) findBestPosition(rect model.Rect) model.Rect {
+	var bestNode model.Rect
 	bestScore := math.MaxInt
 	for _, freeRect := range algo.freeRects {
 		if freeRect.W >= rect.W && freeRect.H >= rect.H {
@@ -68,12 +70,12 @@ func (algo *algoMaxrects) findBestPosition(rect Rect) Rect {
 	return bestNode
 }
 
-func (algo *algoMaxrects) calculateScore(freeRect Rect, rectW, rectH int) int {
+func (algo *algoMaxrects) calculateScore(freeRect model.Rect, rectW, rectH int) int {
 	switch algo.method {
 	case BestShortSideFit:
-		return MinInt(freeRect.W-rectW, freeRect.H-rectH)
+		return utils.MinInt(freeRect.W-rectW, freeRect.H-rectH)
 	case BestLongSideFit:
-		return MaxInt(freeRect.W-rectW, freeRect.H-rectH)
+		return utils.MaxInt(freeRect.W-rectW, freeRect.H-rectH)
 	case BestAreaFit:
 		return freeRect.W*freeRect.H - rectW*rectH
 	case BottomLeftFit:
@@ -85,7 +87,7 @@ func (algo *algoMaxrects) calculateScore(freeRect Rect, rectW, rectH int) int {
 	}
 }
 
-func (algo *algoMaxrects) calculateContactPoint(freeRect Rect, rectW, rectH int) int {
+func (algo *algoMaxrects) calculateContactPoint(freeRect model.Rect, rectW, rectH int) int {
 	contactScore := 0
 	//newRect := FreeRect{
 	//	X:    freeRect.X,
@@ -102,16 +104,16 @@ func (algo *algoMaxrects) calculateContactPoint(freeRect Rect, rectW, rectH int)
 	}
 	for _, usedRect := range algo.usedRects {
 		if newRect.X == usedRect.X+usedRect.W || newRect.X+newRect.W == usedRect.X {
-			overlap := MinInt(newRect.Y+newRect.H, usedRect.Y+usedRect.H) -
-				MaxInt(newRect.Y, usedRect.Y)
+			overlap := utils.MinInt(newRect.Y+newRect.H, usedRect.Y+usedRect.H) -
+				utils.MaxInt(newRect.Y, usedRect.Y)
 			if overlap > 0 {
 				contactScore += overlap
 			}
 		}
 
 		if newRect.Y == usedRect.Y+usedRect.H || newRect.Y+newRect.H == usedRect.Y {
-			overlap := MinInt(newRect.X+newRect.W, usedRect.X+usedRect.W) -
-				MaxInt(newRect.X, usedRect.X)
+			overlap := utils.MinInt(newRect.X+newRect.W, usedRect.X+usedRect.W) -
+				utils.MaxInt(newRect.X, usedRect.X)
 			if overlap > 0 {
 				contactScore += overlap
 			}
@@ -120,7 +122,7 @@ func (algo *algoMaxrects) calculateContactPoint(freeRect Rect, rectW, rectH int)
 	return contactScore
 }
 
-func (algo *algoMaxrects) placeRect(rect Rect) {
+func (algo *algoMaxrects) placeRect(rect model.Rect) {
 	for i := 0; i < len(algo.freeRects); {
 		if algo.splitFreeRect(algo.freeRects[i], rect) {
 			algo.freeRects = append(algo.freeRects[:i], algo.freeRects[i+1:]...)
@@ -132,7 +134,7 @@ func (algo *algoMaxrects) placeRect(rect Rect) {
 	algo.usedRects = append(algo.usedRects, rect)
 }
 
-func (algo *algoMaxrects) splitFreeRect(freeRect Rect, usedRect Rect) bool {
+func (algo *algoMaxrects) splitFreeRect(freeRect model.Rect, usedRect model.Rect) bool {
 	if usedRect.X >= freeRect.X+freeRect.W || usedRect.X+usedRect.W <= freeRect.X ||
 		usedRect.Y >= freeRect.Y+freeRect.H || usedRect.Y+usedRect.H <= freeRect.Y {
 		return false
@@ -162,7 +164,7 @@ func (algo *algoMaxrects) splitFreeRect(freeRect Rect, usedRect Rect) bool {
 		//		H: freeRect.Y + freeRect.H - (usedRect.Y + usedRect.H),
 		//	},
 		//})
-		algo.freeRects = append(algo.freeRects, NewRectByPosAndSize(freeRect.X, usedRect.Y+usedRect.H, freeRect.W, freeRect.Y+freeRect.H-(usedRect.Y+usedRect.H)))
+		algo.freeRects = append(algo.freeRects, model.NewRectByPosAndSize(freeRect.X, usedRect.Y+usedRect.H, freeRect.W, freeRect.Y+freeRect.H-(usedRect.Y+usedRect.H)))
 	}
 
 	// left part
@@ -189,7 +191,7 @@ func (algo *algoMaxrects) splitFreeRect(freeRect Rect, usedRect Rect) bool {
 		//		H: freeRect.H,
 		//	},
 		//})
-		algo.freeRects = append(algo.freeRects, NewRectByPosAndSize(usedRect.X+usedRect.W, freeRect.Y, freeRect.X+freeRect.W-(usedRect.X+usedRect.W), freeRect.H))
+		algo.freeRects = append(algo.freeRects, model.NewRectByPosAndSize(usedRect.X+usedRect.W, freeRect.Y, freeRect.X+freeRect.W-(usedRect.X+usedRect.W), freeRect.H))
 	}
 	return true
 }
@@ -197,12 +199,12 @@ func (algo *algoMaxrects) splitFreeRect(freeRect Rect, usedRect Rect) bool {
 func (algo *algoMaxrects) pruneFreeList() {
 	for i := 0; i < len(algo.freeRects); i++ {
 		for j := i + 1; j < len(algo.freeRects); {
-			if algo.freeRects[i].isContainedIn(algo.freeRects[j]) {
+			if algo.freeRects[i].IsContainedIn(algo.freeRects[j]) {
 				algo.freeRects = append(algo.freeRects[:i], algo.freeRects[i+1:]...)
 				i--
 				break
 			}
-			if algo.freeRects[j].isContainedIn(algo.freeRects[i]) {
+			if algo.freeRects[j].IsContainedIn(algo.freeRects[i]) {
 				algo.freeRects = append(algo.freeRects[:j], algo.freeRects[j+1:]...)
 			} else {
 				j++

@@ -1,4 +1,4 @@
-package pack
+package utils
 
 import (
 	"crypto/md5"
@@ -8,49 +8,10 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
-	"runtime"
 	"sort"
 	"strconv"
 	"strings"
-	"sync"
 )
-
-// This file provides utility functions for image and file operations.
-// Image operations are based on the https://github.com/disintegration/imaging package.
-// Some implementations were translated with the help of https://chat.deepseek.com.
-// And a few are my own creations, haha.
-
-//---------------Math----------------
-
-// MaxInt returns the larger of a and b.
-func MaxInt(a, b int) int {
-	if a > b {
-		return a
-	}
-	return b
-}
-
-// MinInt returns the smaller of a and b.
-func MinInt(a, b int) int {
-	if a < b {
-		return a
-	}
-	return b
-}
-
-// NextPowerOfTwo returns the next power of two of n.
-func NextPowerOfTwo(n int) int {
-	n--
-	n |= n >> 1
-	n |= n >> 2
-	n |= n >> 4
-	n |= n >> 8
-	n |= n >> 16
-	n++
-	return n
-}
-
-//---------------file--------------------
 
 func SafeCreate(outputPath string) (*os.File, error) {
 	dir := filepath.Dir(outputPath)
@@ -145,7 +106,10 @@ func NaturalSort(items []string) {
 }
 
 type SameDetectInfo struct {
-	DupeToBaseName  map[string]string
+	//ccc.png -> aaa.png
+	//bbb.png -> aaa.png
+	DupeToBaseName map[string]string
+	//aaa.png -> [ccc.png, bbb.png]
 	BaseToDupesName map[string][]string
 }
 
@@ -223,33 +187,4 @@ func calculateMD5(filePath string) (string, error) {
 		return "", err
 	}
 	return hex.EncodeToString(hash.Sum(nil)), nil
-}
-
-//---------------other--------------------
-
-// Parallel  processes the data in separate goroutines.
-func Parallel(start, stop int, fn func(<-chan int)) {
-	count := stop - start
-	if count < 1 {
-		return
-	}
-	process := runtime.GOMAXPROCS(0)
-	if process > count {
-		process = count
-	}
-
-	c := make(chan int, count)
-	for i := start; i < stop; i++ {
-		c <- i
-	}
-	close(c)
-	var wg sync.WaitGroup
-	for i := 0; i < process; i++ {
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
-			fn(c)
-		}()
-	}
-	wg.Wait()
 }

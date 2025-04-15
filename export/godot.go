@@ -4,7 +4,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
-	"github.com/91xusir/spritepacker/pack"
+	"github.com/91xusir/spritepacker/model"
 	"text/template"
 )
 
@@ -16,15 +16,15 @@ type gdAtlas struct {
 
 type gdRect struct {
 	Name   string
-	Frame  pack.Rect
-	Margin pack.Rect
+	Frame  model.Rect
+	Margin model.Rect
 	Last   bool
 }
 
 type godotTemplateData struct {
-	Meta    pack.Meta `json:"meta"`
-	Atlas   gdAtlas   `json:"Atlas"`
-	GdRects []gdRect  `json:"rects"`
+	Meta    model.Meta `json:"meta"`
+	Atlas   gdAtlas    `json:"Atlas"`
+	GdRects []gdRect   `json:"rects"`
 }
 
 type GodotExporter struct {
@@ -38,19 +38,19 @@ func (g *GodotExporter) SetExt(ext string) {
 	g.ext = ext
 }
 
-func (g *GodotExporter) Export(atlasInfo *pack.AtlasInfo) ([]byte, error) {
+func (g *GodotExporter) Export(atlasInfo *model.AtlasInfo) ([]byte, error) {
 	if len(atlasInfo.Atlases) == 0 {
 		return nil, fmt.Errorf("no Atlas found")
 	}
 	atlas := atlasInfo.Atlases[0]
 	gdRects := make([]gdRect, len(atlas.Sprites))
 	for i, sprite := range atlas.Sprites {
-		margin := pack.Rect{}
+		margin := model.Rect{}
 		if sprite.Trimmed {
 			margin.X = sprite.TrimmedRect.X
-			margin.Y = sprite.Frame.Y - (sprite.TrimmedRect.Y)
-			margin.W = sprite.SrcRect.W - sprite.Frame.W - margin.X
-			margin.H = sprite.SrcRect.H - sprite.Frame.H - margin.Y
+			margin.Y = sprite.TrimmedRect.Y
+			margin.W = sprite.SrcRect.W - sprite.TrimmedRect.W
+			margin.H = sprite.SrcRect.H - sprite.TrimmedRect.H
 		}
 		gdRects[i] = gdRect{
 			Name:   sprite.FileName,
@@ -79,15 +79,15 @@ func (g *GodotExporter) Export(atlasInfo *pack.AtlasInfo) ([]byte, error) {
 }
 
 // Import TODO test
-func (g *GodotExporter) Import(data []byte) (*pack.AtlasInfo, error) {
+func (g *GodotExporter) Import(data []byte) (*model.AtlasInfo, error) {
 	var raw struct {
 		Textures []struct {
-			Image   string    `json:"image"`
-			Size    pack.Size `json:"size"`
+			Image   string     `json:"image"`
+			Size    model.Size `json:"size"`
 			Sprites []struct {
-				Filename string    `json:"filename"`
-				Region   pack.Rect `json:"region"`
-				Margin   pack.Rect `json:"margin"`
+				Filename string     `json:"filename"`
+				Region   model.Rect `json:"region"`
+				Margin   model.Rect `json:"margin"`
 			} `json:"sprites"`
 		} `json:"textures"`
 	}
@@ -99,27 +99,35 @@ func (g *GodotExporter) Import(data []byte) (*pack.AtlasInfo, error) {
 		return nil, fmt.Errorf("no texture found")
 	}
 	t := raw.Textures[0]
-	sprites := make([]pack.Sprite, len(t.Sprites))
+	sprites := make([]model.Sprite, len(t.Sprites))
 	for i, s := range t.Sprites {
-		// 使用 margin 还原 trimmedRect 和 srcRect
+		// 			margin.X = sprite.TrimmedRect.X
+		//			margin.Y = sprite.TrimmedRect.Y
+		//			margin.W = sprite.SrcRect.W - sprite.TrimmedRect.W
+		//			margin.H = sprite.SrcRect.H - sprite.TrimmedRect.H
 		trimmed := s.Margin.X != 0 || s.Margin.Y != 0 || s.Margin.W != 0 || s.Margin.H != 0
-		srcW := s.Region.W + s.Margin.X + s.Margin.W
-		srcH := s.Region.H + s.Margin.Y + s.Margin.H
-		trimmedRect := pack.NewRectByPosAndSize(s.Region.X-s.Margin.X, s.Region.Y-s.Margin.Y, srcW, srcH)
-		sprites[i] = pack.Sprite{
+		srcW := s.Region.W
+		srcH := s.Region.H
+		trimmedRect := model.Rect{}
+		if trimmed {
+			srcW += s.Margin.W
+			srcH += s.Margin.H
+			trimmedRect = model.NewRectByPosAndSize(s.Margin.X, s.Margin.Y, srcW-s.Margin.W, srcH-s.Margin.H)
+		}
+		sprites[i] = model.Sprite{
 			FileName:    s.Filename,
 			Frame:       s.Region,
-			SrcRect:     pack.Size{W: srcW, H: srcH},
+			SrcRect:     model.Size{W: srcW, H: srcH},
 			TrimmedRect: trimmedRect,
 			Trimmed:     trimmed,
 			Rotated:     false, // godot not support rotated
 		}
 	}
-	return &pack.AtlasInfo{
-		Meta: pack.Meta{
+	return &model.AtlasInfo{
+		Meta: model.Meta{
 			Format: "tpsheet",
 		},
-		Atlases: []pack.Atlas{
+		Atlases: []model.Atlas{
 			{
 				Name:    t.Image,
 				Size:    t.Size,

@@ -1,4 +1,4 @@
-package pack
+package model
 
 type AtlasInfo struct {
 	Meta    Meta    `json:"meta"`

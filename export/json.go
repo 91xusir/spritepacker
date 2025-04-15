@@ -2,7 +2,7 @@ package export
 
 import (
 	"encoding/json"
-	"github.com/91xusir/spritepacker/pack"
+	"github.com/91xusir/spritepacker/model"
 )
 
 type JsonExporter struct {
@@ -16,12 +16,12 @@ func (j *JsonExporter) SetExt(ext string) {
 	j.ext = ext
 }
 
-func (j *JsonExporter) Export(atlas *pack.AtlasInfo) ([]byte, error) {
+func (j *JsonExporter) Export(atlas *model.AtlasInfo) ([]byte, error) {
 	return json.Marshal(atlas)
 }
 
-func (j *JsonExporter) Import(data []byte) (*pack.AtlasInfo, error) {
-	var atlas pack.AtlasInfo
+func (j *JsonExporter) Import(data []byte) (*model.AtlasInfo, error) {
+	var atlas model.AtlasInfo
 	err := json.Unmarshal(data, &atlas)
 	return &atlas, err
 }

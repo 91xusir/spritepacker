@@ -3,6 +3,7 @@ package spritepacker
 import (
 	"encoding/json"
 	"github.com/91xusir/spritepacker/pack"
+	"github.com/91xusir/spritepacker/utils"
 	"os"
 	"path/filepath"
 	"testing"
@@ -25,7 +26,7 @@ func TestSpritePacker(t *testing.T) {
 
 	for i := range atlasImages {
 		outputPath := filepath.Join("output", spriteAtlasInfo.Atlases[i].Name)
-		_ = pack.SaveImgByExt(outputPath, atlasImages[i], pack.WithCLV(pack.DefaultCompression))
+		_ = utils.SaveImgByExt(outputPath, atlasImages[i], utils.WithCLV(utils.DefaultCompression))
 	}
 
 	jsonBytes, _ := json.MarshalIndent(spriteAtlasInfo, "", "  ")
@@ -45,7 +46,7 @@ func TestSpriteUnpack(t *testing.T) {
 func TestImageDiff(t *testing.T) {
 	inputFolder := "input"
 	outputFolder := "output"
-	diffs := pack.CompareImgFormFolders(inputFolder, outputFolder)
+	diffs := utils.CompareImgFormFolders(inputFolder, outputFolder)
 	if len(diffs) > 0 {
 		t.Errorf("Found %d different images:\n", len(diffs))
 	} else {

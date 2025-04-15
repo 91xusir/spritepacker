@@ -3,6 +3,7 @@ package spritepacker
 import (
 	"bufio"
 	"fmt"
+	"github.com/91xusir/spritepacker/model"
 	"github.com/91xusir/spritepacker/pack"
 	"math/rand"
 	"os"
@@ -15,7 +16,7 @@ import (
 )
 
 type AlgoResult struct {
-	Rects    []pack.Rect
+	Rects    []model.Rect
 	Title    string
 	FillRate float64
 	TimeUsed time.Duration
@@ -27,9 +28,9 @@ type AlgoResult struct {
 
 // used fixed data and fixed size to test
 func TestFixedDataFixedSize(t *testing.T) {
-	reqRects := make([]pack.Rect, 100)
+	reqRects := make([]model.Rect, 100)
 	for i := 0; i < 100; i++ {
-		reqRects[i] = pack.NewRectBySize(64, 64)
+		reqRects[i] = model.NewRectBySize(64, 64)
 	}
 
 	options := pack.NewOptions().
@@ -73,7 +74,7 @@ func TestRandomDateRandomSize(t *testing.T) {
 	generateComparisonHTML(results, "randomDate_randomSize")
 }
 
-func packedWithAllAlgorithms(t *testing.T, reqRects []pack.Rect, options *pack.Options) []AlgoResult {
+func packedWithAllAlgorithms(t *testing.T, reqRects []model.Rect, options *pack.Options) []AlgoResult {
 	var results []AlgoResult
 	algorithms := []struct {
 		name string
@@ -103,17 +104,17 @@ func packedWithAllAlgorithms(t *testing.T, reqRects []pack.Rect, options *pack.O
 	return results
 }
 
-func generateRandomRects(count, maxW, maxH int) []pack.Rect {
-	rects := make([]pack.Rect, 0, count)
+func generateRandomRects(count, maxW, maxH int) []model.Rect {
+	rects := make([]model.Rect, 0, count)
 	for i := 0; i < count; i++ {
 		if rand.Intn(2) == 0 {
 			w := rand.Intn(maxW/2) + maxW/2
 			h := rand.Intn(maxH/2) + maxH/2
-			rects = append(rects, pack.NewRectBySizeAndId(w, h, i))
+			rects = append(rects, model.NewRectBySizeAndId(w, h, i))
 		} else {
 			w := rand.Intn(maxW/3) + 1
 			h := rand.Intn(maxH/3) + 1
-			rects = append(rects, pack.NewRectBySizeAndId(w, h, i))
+			rects = append(rects, model.NewRectBySizeAndId(w, h, i))
 		}
 	}
 	return rects
@@ -223,7 +224,7 @@ func generateComparisonHTML(results []AlgoResult, filename string) {
 	}
 }
 
-func formatRects(rects []pack.Rect) string {
+func formatRects(rects []model.Rect) string {
 	parts := make([]string, len(rects))
 	for i, r := range rects {
 		parts[i] = fmt.Sprintf("{x:%d,y:%d,w:%d,l:%d}", r.X, r.Y, r.W, r.H)
@@ -231,7 +232,7 @@ func formatRects(rects []pack.Rect) string {
 	return "[" + strings.Join(parts, ",") + "]"
 }
 
-func formatRotateFlags(rects []pack.Rect) string {
+func formatRotateFlags(rects []model.Rect) string {
 	flags := make([]string, len(rects))
 	for i, r := range rects {
 		if r.IsRotated {
@@ -243,9 +244,9 @@ func formatRotateFlags(rects []pack.Rect) string {
 	return "[" + strings.Join(flags, ",") + "]"
 }
 
-func getTestData(testData string) ([]pack.Rect, error) {
+func getTestData(testData string) ([]model.Rect, error) {
 	scanner := bufio.NewScanner(strings.NewReader(testData))
-	var reqPackedRect []pack.Rect
+	var reqPackedRect []model.Rect
 	id := 0
 	for scanner.Scan() {
 		line := strings.TrimSpace(scanner.Text())
@@ -264,7 +265,7 @@ func getTestData(testData string) ([]pack.Rect, error) {
 		if err != nil {
 			return nil, fmt.Errorf("an error in parsing rectangle height: %w", err)
 		}
-		rect := pack.NewRectBySizeAndId(w, h, id)
+		rect := model.NewRectBySizeAndId(w, h, id)
 		id++
 		reqPackedRect = append(reqPackedRect, rect)
 	}

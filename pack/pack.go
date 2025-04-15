@@ -2,6 +2,8 @@ package pack
 
 import (
 	"fmt"
+	"github.com/91xusir/spritepacker/model"
+	"github.com/91xusir/spritepacker/utils"
 	"image"
 	"image/draw"
 	"math"
@@ -23,7 +25,7 @@ const (
 type Packer struct {
 	algo           algo     // interface algo
 	option         *Options // Options for packing
-	sameDetectInfo SameDetectInfo
+	sameDetectInfo utils.SameDetectInfo
 	inputDir       string // input path
 }
 
@@ -41,9 +43,9 @@ func NewPacker(option *Options) *Packer {
 }
 
 // PackRect packs the given rectangles into a bin and returns the result.
-func (p *Packer) PackRect(reqRects []Rect) []Bin {
+func (p *Packer) PackRect(reqRects []model.Rect) []model.Bin {
 
-	var bins []Bin
+	var bins []model.Bin
 	if len(reqRects) == 0 {
 		return bins
 	}
@@ -71,11 +73,16 @@ func (p *Packer) PackRect(reqRects []Rect) []Bin {
 	if p.option.padding != 0 {
 		for i := range bins {
 			for j := range bins[i].PackedRects {
-				removePadding(&bins[i].PackedRects[j], p.option.padding)
+				addPadding(&bins[i].PackedRects[j], -p.option.padding)
 			}
 		}
 	}
 	return bins
+}
+
+func addPadding(r *model.Rect, padding int) {
+	r.W += padding
+	r.H += padding
 }
 
 // PackSprites packs the given sprite images
@@ -91,14 +98,14 @@ func (p *Packer) PackRect(reqRects []Rect) []Bin {
 // Example:
 //
 //	spriteAtlas, atlasImages, err := packer.PackSprites("./input")
-func (p *Packer) PackSprites(input string) (*AtlasInfo, []image.Image, error) {
-	spritePaths, err := ListFilePaths(input)
+func (p *Packer) PackSprites(input string) (*model.AtlasInfo, []image.Image, error) {
+	spritePaths, err := utils.ListFilePaths(input)
 	if err != nil {
 		return nil, nil, err
 	}
 
 	if p.option.sameDetect {
-		spritePaths, p.sameDetectInfo, _ = FindDuplicateFiles(spritePaths)
+		spritePaths, p.sameDetectInfo, _ = utils.FindDuplicateFiles(spritePaths)
 	}
 
 	// save input dir
@@ -108,9 +115,9 @@ func (p *Packer) PackSprites(input string) (*AtlasInfo, []image.Image, error) {
 	meta := getMateData()
 
 	// create sprite atlas
-	spriteAtlas := &AtlasInfo{
+	spriteAtlas := &model.AtlasInfo{
 		Meta:    meta,
-		Atlases: make([]Atlas, 0),
+		Atlases: make([]model.Atlas, 0),
 	}
 	// get image rects and src rects and trimmed rects
 	reqRects, srcRects, trimmedRectMap := p.getImageRects(spritePaths)
@@ -133,7 +140,7 @@ func (p *Packer) PackSprites(input string) (*AtlasInfo, []image.Image, error) {
 	//							Trimmed
 	for i, bin := range bins {
 
-		atlasSize := Size{W: bin.W, H: bin.H}
+		atlasSize := model.Size{W: bin.W, H: bin.H}
 
 		// if power of two
 		if p.option.powerOfTwo {
@@ -143,14 +150,14 @@ func (p *Packer) PackSprites(input string) (*AtlasInfo, []image.Image, error) {
 		// create atlas
 		var atlasName string
 		if len(bins) == 1 {
-			atlasName = p.option.name + ".png"
+			atlasName = p.option.name + p.option.imgExt
 		} else {
-			atlasName = fmt.Sprintf("%s_%d.png", p.option.name, i)
+			atlasName = fmt.Sprintf("%s_%d%s", p.option.name, i, p.option.imgExt)
 		}
-		atlas := Atlas{
+		atlas := model.Atlas{
 			Name:    atlasName,
 			Size:    atlasSize,
-			Sprites: make([]Sprite, 0, len(bin.PackedRects)),
+			Sprites: make([]model.Sprite, 0, len(bin.PackedRects)),
 		}
 
 		//fmt.Printf("len %d \n", len(bin.PackedRects))
@@ -161,7 +168,7 @@ func (p *Packer) PackSprites(input string) (*AtlasInfo, []image.Image, error) {
 		for _, rect := range bin.PackedRects {
 			// create sprite
 			baseName := filepath.Base(spritePaths[rect.Id])
-			sprite := Sprite{
+			sprite := model.Sprite{
 				FileName:    baseName,
 				Frame:       rect,
 				SrcRect:     srcRects[rect.Id],
@@ -194,8 +201,8 @@ func (p *Packer) PackSprites(input string) (*AtlasInfo, []image.Image, error) {
 	return spriteAtlas, images, nil
 }
 
-func (p *Packer) packInBins(reqRects []Rect) []Bin {
-	var bins []Bin
+func (p *Packer) packInBins(reqRects []model.Rect) []model.Bin {
+	var bins []model.Bin
 	remainingRects := reqRects
 	// loop until all rects are packed
 	for len(remainingRects) > 0 {
@@ -225,10 +232,10 @@ func (p *Packer) packInBins(reqRects []Rect) []Bin {
 
 			// set the scope of your search
 			low := minSide
-			high := MaxInt(p.option.maxH, p.option.maxW)
+			high := utils.MaxInt(p.option.maxH, p.option.maxW)
 
 			var bestSize int
-			var bestResult []Rect
+			var bestResult []model.Rect
 			found := false
 
 			// Try to find the smallest feasible square size by binocular
@@ -249,18 +256,18 @@ func (p *Packer) packInBins(reqRects []Rect) []Bin {
 
 			if found {
 				// create a bin using the optimal size found
-				bin := NewBin(bestSize, bestSize, bestResult)
+				bin := model.NewBin(bestSize, bestSize, bestResult)
 				bin.UsedArea = totalArea
 				bins = append(bins, bin)
 			} else {
 				// If you can't find the optimal size, use the original size
-				bin := NewBin(p.option.maxW, p.option.maxH, packedRects)
+				bin := model.NewBin(p.option.maxW, p.option.maxH, packedRects)
 				bin.UsedArea = totalArea
 				bins = append(bins, bin)
 			}
 		} else {
 			// If there are unpacked rectangles or autosize not enabled, use the original size
-			bin := NewBin(p.option.maxW, p.option.maxH, packedRects)
+			bin := model.NewBin(p.option.maxW, p.option.maxH, packedRects)
 			bin.UsedArea = totalArea
 			bins = append(bins, bin)
 		}
@@ -272,10 +279,10 @@ func (p *Packer) packInBins(reqRects []Rect) []Bin {
 	return bins
 }
 
-func (p *Packer) getImageRects(filePaths []string) ([]Rect, []Size, map[int]Rect) {
-	reqRects := make([]Rect, 0)
-	srcRects := make([]Size, len(filePaths))
-	trimmedRectMap := make(map[int]Rect)
+func (p *Packer) getImageRects(filePaths []string) ([]model.Rect, []model.Size, map[int]model.Rect) {
+	reqRects := make([]model.Rect, 0)
+	srcRects := make([]model.Size, len(filePaths))
+	trimmedRectMap := make(map[int]model.Rect)
 	for i, fileName := range filePaths {
 		file, err := os.Open(fileName)
 		if err != nil {
@@ -293,19 +300,19 @@ func (p *Packer) getImageRects(filePaths []string) ([]Rect, []Size, map[int]Rect
 			if err != nil {
 				continue // Skip non-image files
 			}
-			srcSize := Size{
+			srcSize := model.Size{
 				W: src.Bounds().Dx(),
 				H: src.Bounds().Dy(),
 			}
-			trimRect := GetOpaqueBounds(src, p.option.tolerance)
-			trimmedRect := NewRectByPosAndSize(
+			trimRect := utils.GetOpaqueBounds(src, p.option.tolerance)
+			trimmedRect := model.NewRectByPosAndSize(
 				trimRect.Min.X,
 				trimRect.Min.Y,
 				trimRect.Dx(),
 				trimRect.Dy(),
 			)
 			srcRects[i] = srcSize
-			reqRects = append(reqRects, NewRectBySizeAndId(trimRect.Dx(), trimRect.Dy(), i))
+			reqRects = append(reqRects, model.NewRectBySizeAndId(trimRect.Dx(), trimRect.Dy(), i))
 			trimmedRectMap[i] = trimmedRect
 		} else {
 			cfg, _, err := image.DecodeConfig(file)
@@ -313,19 +320,19 @@ func (p *Packer) getImageRects(filePaths []string) ([]Rect, []Size, map[int]Rect
 			if err != nil {
 				continue // Skip non-image files
 			}
-			srcSize := Size{
+			srcSize := model.Size{
 				W: cfg.Width,
 				H: cfg.Height,
 			}
 			srcRects[i] = srcSize
-			reqRects = append(reqRects, NewRectBySizeAndId(cfg.Width, cfg.Height, i))
+			reqRects = append(reqRects, model.NewRectBySizeAndId(cfg.Width, cfg.Height, i))
 		}
 	}
 
 	return reqRects, srcRects, trimmedRectMap
 }
 
-func (p *Packer) createAtlasImages(atlas *AtlasInfo) ([]image.Image, error) {
+func (p *Packer) createAtlasImages(atlas *model.AtlasInfo) ([]image.Image, error) {
 	var atlasImages = make([]image.Image, len(atlas.Atlases))
 	for i := range atlas.Atlases {
 		atlasSize := atlas.Atlases[i].Size
@@ -340,22 +347,20 @@ func (p *Packer) createAtlasImages(atlas *AtlasInfo) ([]image.Image, error) {
 			}
 			// if same detect
 			if p.option.sameDetect {
-				//xxx.png -> aaa.png
-				//bbb.png -> aaa.png
-				//aaa.png -> nil
+
 				if _, ok := p.sameDetectInfo.DupeToBaseName[sprite.FileName]; ok {
 					//fmt.Printf("same detect %s \n", sprite.FileName)
 					continue
 				}
 			}
 
-			spriteImg, err := LoadImg(filepath.Join(p.inputDir, sprite.FileName))
+			spriteImg, err := utils.LoadImg(filepath.Join(p.inputDir, sprite.FileName))
 			if err != nil {
 				return nil, err
 			}
 			// if rotated
 			if sprite.Rotated {
-				spriteImg = Rotate270(spriteImg)
+				spriteImg = utils.Rotate270(spriteImg)
 				srcH := sprite.SrcRect.H
 				newX := srcH - trimmedRect.Y - trimmedRect.H
 				newY := trimmedRect.X
@@ -370,8 +375,8 @@ func (p *Packer) createAtlasImages(atlas *AtlasInfo) ([]image.Image, error) {
 	return atlasImages, nil
 }
 
-func getMateData() Meta {
-	return Meta{
+func getMateData() model.Meta {
+	return model.Meta{
 		Repo:      Repo,
 		Format:    Format,
 		Version:   Version,
