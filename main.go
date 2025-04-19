@@ -105,14 +105,17 @@ func main() {
 	}
 
 	args := flag.Args()
+	// if no input path is specified, use the first argument as input path
 	if len(args) > 0 && inputPath == "" {
 		inputPath = args[0]
 		f, err := os.Stat(inputPath)
 		check(err)
+		// if input path is a file, unpack it
 		if !f.IsDir() {
 			check(pack.UnpackSprites(inputPath, pack.WithImgInput(atlasImgPath), pack.WithOutput(outputPath)))
 			os.Exit(0)
 		}
+		// use default options if output path is not specified
 		opts.Default()
 		name = utils.GetLastFolderName(inputPath)
 		opts.Name(name)
